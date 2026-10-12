@@ -1,0 +1,47 @@
+title: PowerShell Encoded Command Execution
+id: e34e5e68-d5f0-4220-bef9-a3221432d2bc
+status: experimental
+description: |
+    Detects PowerShell (Windows PowerShell or PowerShell 7) started with the -EncodedCommand
+    parameter or any of its accepted abbreviations. Attackers base64-encode commands to hide
+    their content from casual inspection and to avoid quoting problems in one-liners.
+references:
+    - https://attack.mitre.org/techniques/T1059/001/
+    - https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_powershell_exe
+author: Reda
+date: 2026-10-12
+tags:
+    - attack.execution
+    - attack.t1059.001
+logsource:
+    product: windows
+    category: process_creation
+detection:
+    selection_img:
+        - Image|endswith:
+              - '\powershell.exe'
+              - '\pwsh.exe'
+        - OriginalFileName:
+              - 'PowerShell.EXE'
+              - 'pwsh.dll'
+    selection_cli:
+        CommandLine|windash|contains:
+            - ' -e '
+            - ' -ec '
+            - ' -en '
+            - ' -enc '
+            - ' -enco '
+            - ' -encod '
+            - ' -encode '
+            - ' -encoded '
+            - ' -encodedc '
+            - ' -encodedco '
+            - ' -encodedcom '
+            - ' -encodedcomm '
+            - ' -encodedcomma '
+            - ' -encodedcomman '
+            - ' -encodedcommand '
+    condition: all of selection_*
+falsepositives:
+    - Administration and deployment tools (SCCM, Intune) that launch PowerShell with encoded commands
+level: high

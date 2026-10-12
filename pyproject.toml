@@ -1,0 +1,41 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "detforge"
+version = "0.1.0"
+description = "Detection-as-Code pipeline: tested Windows Sigma rules mapped to MITRE ATT&CK"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Reda" }]
+requires-python = ">=3.11"
+dependencies = [
+    "pySigma>=1.5,<2",
+    "pySigma-backend-sqlite>=2,<3",
+    "pySigma-backend-splunk>=2,<3",
+    "pySigma-backend-elasticsearch>=2,<3",
+    "pySigma-pipeline-sysmon>=2,<3",
+    "pySigma-pipeline-windows>=2,<3",
+    "typer>=0.12",
+    "rich>=13",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "ruff>=0.6",
+]
+
+[project.scripts]
+detforge = "detforge.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/detforge"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
