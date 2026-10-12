@@ -8,7 +8,9 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from detforge.harness import run_tests
 from detforge.lint import lint_rules
+from detforge.loader import RULES_DIR
 
 app = typer.Typer(help="DetForge: lint, test, convert and report on Sigma detection rules.")
 console = Console()
@@ -60,7 +62,31 @@ def test(
     ] = None,
 ) -> None:
     """Run each rule against its TP/TN fixtures and the shared baseline."""
-    _not_implemented("test")
+    results = run_tests(rule or RULES_DIR)
+    table = Table(title="Rule tests")
+    table.add_column("Rule", overflow="fold")
+    table.add_column("TP", justify="right")
+    table.add_column("TN fp", justify="right")
+    table.add_column("Baseline fp", justify="right")
+    table.add_column("Result")
+    for result in results:
+        table.add_row(
+            _display(result.path),
+            f"{result.tp_matched}/{result.tp_total}",
+            str(result.tn_fp),
+            str(result.baseline_fp),
+            "[green]PASS[/green]" if result.passed else "[red]FAIL[/red]",
+        )
+    console.print(table)
+    failed = [result for result in results if not result.passed]
+    for result in failed:
+        console.print(f"[red]FAIL[/red] {_display(result.path)}")
+        for failure in result.failures:
+            console.print(f"  - {failure}", markup=False, highlight=False)
+    if failed:
+        console.print(f"[red]test: {len(failed)} of {len(results)} rule(s) failed[/red]")
+        raise typer.Exit(1)
+    console.print(f"[green]test: {len(results)} rule(s) passed[/green]")
 
 
 @app.command()

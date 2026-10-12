@@ -25,11 +25,14 @@ class FixtureError(ValueError):
 
 
 def rule_files(rules_root: Path) -> list[Path]:
+    if rules_root.is_file():
+        return [rules_root]
     return sorted([*rules_root.rglob("*.yml"), *rules_root.rglob("*.yaml")])
 
 
 def load_rules(rules_root: Path = RULES_DIR) -> tuple[list[SigmaRule], list[LoadError]]:
-    """Load every rule file on its own, so one broken file cannot hide the others."""
+    """Load one rule file, or every rule file under a folder, each file on its own
+    so one broken file cannot hide the others."""
     rules: list[SigmaRule] = []
     errors: list[LoadError] = []
     for path in rule_files(rules_root):
