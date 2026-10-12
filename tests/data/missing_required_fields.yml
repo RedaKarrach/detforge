@@ -1,0 +1,14 @@
+title: Whoami Missing Fields
+id: d5a1c152-7cd9-4ce9-934c-a351609f849e
+status: test
+date: 2026-10-12
+tags:
+    - attack.discovery
+    - attack.t1033
+logsource:
+    product: windows
+    category: process_creation
+detection:
+    selection:
+        Image|endswith: '\whoami.exe'
+    condition: selection

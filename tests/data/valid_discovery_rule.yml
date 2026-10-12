@@ -1,0 +1,19 @@
+title: Whoami Execution
+id: a9596d4d-e475-4e1c-b940-07dfab820096
+status: test
+description: Test rule for the DetForge linter.
+author: Reda
+date: 2026-10-12
+tags:
+    - attack.discovery
+    - attack.t1033
+logsource:
+    product: windows
+    category: process_creation
+detection:
+    selection:
+        Image|endswith: '\whoami.exe'
+    condition: selection
+falsepositives:
+    - Administrators checking their own identity
+level: low

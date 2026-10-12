@@ -1,0 +1,19 @@
+title: Whoami With Bad File Name
+id: e6f54ebd-a053-4c62-a7fb-0d680022d626
+status: test
+description: Test rule for the DetForge linter.
+author: Reda
+date: 2026-10-12
+tags:
+    - attack.discovery
+    - attack.t1033
+logsource:
+    product: windows
+    category: process_creation
+detection:
+    selection:
+        Image|endswith: '\whoami.exe'
+    condition: selection
+falsepositives:
+    - Administrators checking their own identity
+level: low

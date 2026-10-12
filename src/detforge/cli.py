@@ -6,6 +6,9 @@ from typing import Annotated
 
 import typer
 from rich.console import Console
+from rich.table import Table
+
+from detforge.lint import lint_rules
 
 app = typer.Typer(help="DetForge: lint, test, convert and report on Sigma detection rules.")
 console = Console()
@@ -15,6 +18,13 @@ class Target(str, Enum):
     splunk = "splunk"
     lucene = "lucene"
     all = "all"
+
+
+def _display(path: Path) -> str:
+    try:
+        return path.resolve().relative_to(Path.cwd()).as_posix()
+    except ValueError:
+        return path.as_posix()
 
 
 def _not_implemented(command: str) -> None:
@@ -28,7 +38,19 @@ def lint(
     ] = False,
 ) -> None:
     """Validate every rule with pySigma validators and project checks."""
-    _not_implemented("lint")
+    issues = lint_rules(offline=offline)
+    if not issues:
+        console.print("[green]lint: no issues[/green]")
+        return
+    table = Table(title="Lint issues")
+    table.add_column("File", overflow="fold")
+    table.add_column("Check")
+    table.add_column("Message", overflow="fold")
+    for issue in issues:
+        table.add_row(_display(issue.path), issue.check, issue.message)
+    console.print(table)
+    console.print(f"[red]lint: {len(issues)} issue(s)[/red]")
+    raise typer.Exit(1)
 
 
 @app.command()
