@@ -9,9 +9,11 @@ from rich.console import Console
 from rich.table import Table
 
 from detforge.convert import BACKENDS, convert_rules
+from detforge.coverage import write_coverage
 from detforge.harness import run_tests
 from detforge.lint import lint_rules
 from detforge.loader import RULES_DIR
+from detforge.report import write_report
 
 app = typer.Typer(help="DetForge: lint, test, convert and report on Sigma detection rules.")
 console = Console()
@@ -28,10 +30,6 @@ def _display(path: Path) -> str:
         return path.resolve().relative_to(Path.cwd()).as_posix()
     except ValueError:
         return path.as_posix()
-
-
-def _not_implemented(command: str) -> None:
-    console.print(f"[yellow]{command}: not implemented yet[/yellow]")
 
 
 @app.command()
@@ -118,10 +116,15 @@ def convert(
 @app.command()
 def coverage() -> None:
     """Build the ATT&CK Navigator layer and coverage summary."""
-    _not_implemented("coverage")
+    coverage = write_coverage()
+    console.print(
+        f"coverage: {coverage.rule_count} rule(s), {len(coverage.techniques)} technique(s), "
+        f"{len(coverage.tactics)} tactic(s) -> dist/attack-layer.json, dist/coverage.md"
+    )
 
 
 @app.command()
 def report() -> None:
     """Write the Markdown report of counts, test results and coverage."""
-    _not_implemented("report")
+    path = write_report()
+    console.print(f"report: written to {_display(path)}")
