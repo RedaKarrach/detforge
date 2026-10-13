@@ -8,6 +8,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from detforge.convert import BACKENDS, convert_rules
 from detforge.harness import run_tests
 from detforge.lint import lint_rules
 from detforge.loader import RULES_DIR
@@ -94,7 +95,24 @@ def convert(
     target: Annotated[Target, typer.Option(help="Backend to convert rules to.")] = Target.all,
 ) -> None:
     """Convert rules to Splunk SPL and/or Elastic Lucene queries."""
-    _not_implemented("convert")
+    targets = list(BACKENDS) if target is Target.all else [target.value]
+    results = convert_rules(targets)
+    table = Table(title="Conversion")
+    table.add_column("Rule", overflow="fold")
+    table.add_column("Target")
+    table.add_column("Output", overflow="fold")
+    for result in results:
+        table.add_row(
+            _display(result.path),
+            result.target,
+            _display(result.output) if result.output else f"[red]{result.error}[/red]",
+        )
+    console.print(table)
+    failed = [result for result in results if not result.ok]
+    if failed:
+        console.print(f"[red]convert: {len(failed)} conversion(s) failed[/red]")
+        raise typer.Exit(1)
+    console.print(f"[green]convert: {len(results)} file(s) written[/green]")
 
 
 @app.command()
