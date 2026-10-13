@@ -38,7 +38,7 @@ def load_rules(rules_root: Path = RULES_DIR) -> tuple[list[SigmaRule], list[Load
     for path in rule_files(rules_root):
         try:
             collection = SigmaCollection.from_yaml(
-                path.read_text(encoding="utf-8"),
+                path.read_text(encoding="utf-8-sig"),
                 collect_errors=True,
                 source=SigmaRuleLocation(path),
             )
@@ -70,7 +70,7 @@ def fixture_dir(rule: SigmaRule, fixtures_root: Path = FIXTURES_DIR) -> Path:
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
     """Read one JSON object per line, skipping blank lines."""
     events: list[dict[str, Any]] = []
-    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+    for number, line in enumerate(path.read_text(encoding="utf-8-sig").splitlines(), start=1):
         if not line.strip():
             continue
         try:

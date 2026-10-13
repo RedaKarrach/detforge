@@ -1,0 +1,32 @@
+title: PsExec Service Installation
+id: 6ca994c2-5abb-4d23-afff-1fd5c67cabac
+status: experimental
+description: |
+    Detects installation of the PSEXESVC service, which Sysinternals PsExec creates on the target
+    host to run commands remotely over SMB. Attackers use PsExec with stolen credentials to move
+    laterally and to run payloads as SYSTEM.
+references:
+    - https://attack.mitre.org/techniques/T1021/002/
+    - https://attack.mitre.org/techniques/T1569/002/
+    - https://learn.microsoft.com/en-us/sysinternals/downloads/psexec
+author: Reda
+date: 2026-10-12
+tags:
+    - attack.lateral-movement
+    - attack.t1021.002
+    - attack.execution
+    - attack.t1569.002
+logsource:
+    product: windows
+    service: system
+detection:
+    selection_event:
+        Provider_Name: 'Service Control Manager'
+        EventID: 7045
+    selection_service:
+        - ServiceName: 'PSEXESVC'
+        - ImagePath|endswith: '\PSEXESVC.exe'
+    condition: all of selection_*
+falsepositives:
+    - Administrators and IT deployment scripts that use PsExec legitimately
+level: medium

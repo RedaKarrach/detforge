@@ -64,3 +64,9 @@ def test_load_rules_reports_two_rules_in_one_file(tmp_path: Path) -> None:
     (tmp_path / "two_rules_in_one_file.yml").write_text(text + "---\n" + text)
     _, errors = load_rules(tmp_path)
     assert [error.message for error in errors] == ["expected one rule per file, found 2"]
+
+
+def test_read_jsonl_accepts_utf8_bom(tmp_path: Path) -> None:
+    path = tmp_path / "events.jsonl"
+    path.write_bytes(b'\xef\xbb\xbf{"a": 1}\n')
+    assert read_jsonl(path) == [{"a": 1}]
