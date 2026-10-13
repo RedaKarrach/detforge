@@ -31,8 +31,8 @@ def add_rule(
     return target
 
 
-def lint(root: Path) -> list[LintIssue]:
-    return lint_rules(root / "rules", root / "fixtures", offline=True)
+def lint(root: Path, author: str | None = "Reda") -> list[LintIssue]:
+    return lint_rules(root / "rules", root / "fixtures", offline=True, author=author)
 
 
 def checks(issues: list[LintIssue]) -> set[str]:
@@ -63,6 +63,7 @@ def test_wrong_author_is_reported(tmp_path: Path) -> None:
     path = add_rule(tmp_path, "valid_discovery_rule.yml")
     path.write_text(path.read_text().replace("author: Reda", "author: Someone Else"))
     assert "author must be 'Reda'" in {i.message for i in lint(tmp_path)}
+    assert lint(tmp_path, author=None) == []
 
 
 def test_non_snake_case_filename_is_reported(tmp_path: Path) -> None:

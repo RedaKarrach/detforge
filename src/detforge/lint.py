@@ -36,7 +36,6 @@ REQUIRED_FIELDS = (
     "level",
     "tags",
 )
-AUTHOR = "Reda"
 TACTICS = frozenset(
     {
         "reconnaissance",
@@ -71,13 +70,14 @@ def lint_rules(
     rules_root: Path = RULES_DIR,
     fixtures_root: Path = FIXTURES_DIR,
     offline: bool = False,
+    author: str | None = None,
 ) -> list[LintIssue]:
     rules, load_errors = load_rules(rules_root)
     issues = [LintIssue(error.path, "parse", error.message) for error in load_errors]
     issues += pysigma_issues(rules, offline)
     for rule in rules:
         issues += layout_issues(rule, rules_root)
-        issues += field_issues(rule)
+        issues += field_issues(rule, author)
         issues += tag_issues(rule)
         issues += fixture_issues(rule, fixtures_root)
     return issues
@@ -128,15 +128,15 @@ def layout_issues(rule: SigmaRule, rules_root: Path) -> list[LintIssue]:
     return issues
 
 
-def field_issues(rule: SigmaRule) -> list[LintIssue]:
+def field_issues(rule: SigmaRule, author: str | None = None) -> list[LintIssue]:
     path = rule_path(rule)
     issues = [
         LintIssue(path, "required-field", f"missing or empty field '{name}'")
         for name in REQUIRED_FIELDS
         if getattr(rule, name, None) in (None, "", [])
     ]
-    if rule.author and rule.author != AUTHOR:
-        issues.append(LintIssue(path, "required-field", f"author must be '{AUTHOR}'"))
+    if author and rule.author and rule.author != author:
+        issues.append(LintIssue(path, "required-field", f"author must be '{author}'"))
     return issues
 
 

@@ -8,21 +8,50 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from detforge.config import Settings
 from detforge.convert import BACKENDS, convert_rules
 from detforge.coverage import write_coverage
 from detforge.harness import run_tests
 from detforge.lint import lint_rules
-from detforge.loader import RULES_DIR
 from detforge.report import write_report
 
-app = typer.Typer(help="DetForge: lint, test, convert and report on Sigma detection rules.")
+app = typer.Typer(
+    help="DetForge: lint, test, convert and report on Sigma detection rules.",
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
 console = Console()
+
+RulesOpt = Annotated[
+    Path | None, typer.Option("--rules", help="Rules folder (default: rules/).", show_default=False)
+]
+FixturesOpt = Annotated[
+    Path | None,
+    typer.Option(
+        "--fixtures", help="Fixtures folder (default: tests/fixtures/).", show_default=False
+    ),
+]
+OutOpt = Annotated[
+    Path | None, typer.Option("--out", help="Output folder (default: dist/).", show_default=False)
+]
 
 
 class Target(str, Enum):
     splunk = "splunk"
     lucene = "lucene"
     all = "all"
+
+
+def settings(rules: Path | None = None, fixtures: Path | None = None, out: Path | None = None):
+    try:
+        base = Settings.load()
+    except (ValueError, OSError) as exc:
+        console.print(f"[red]error:[/red] {exc}")
+        raise typer.Exit(2) from exc
+    cfg = base.override(rules, fixtures, out)
+    if not cfg.rules.exists():
+        console.print(f"[red]error:[/red] rules path not found: {cfg.rules}")
+        raise typer.Exit(2)
+    return cfg
 
 
 def _display(path: Path) -> str:
@@ -34,12 +63,15 @@ def _display(path: Path) -> str:
 
 @app.command()
 def lint(
+    rules: RulesOpt = None,
+    fixtures: FixturesOpt = None,
     offline: Annotated[
         bool, typer.Option(help="Skip validators that download MITRE data at runtime.")
     ] = False,
 ) -> None:
     """Validate every rule with pySigma validators and project checks."""
-    issues = lint_rules(offline=offline)
+    cfg = settings(rules, fixtures)
+    issues = lint_rules(cfg.rules, cfg.fixtures, offline=offline, author=cfg.author)
     if not issues:
         console.print("[green]lint: no issues[/green]")
         return
@@ -59,9 +91,12 @@ def test(
     rule: Annotated[
         Path | None, typer.Option(help="Test a single rule file instead of all rules.")
     ] = None,
+    rules: RulesOpt = None,
+    fixtures: FixturesOpt = None,
 ) -> None:
     """Run each rule against its TP/TN fixtures and the shared baseline."""
-    results = run_tests(rule or RULES_DIR)
+    cfg = settings(rule or rules, fixtures)
+    results = run_tests(cfg.rules, cfg.fixtures)
     table = Table(title="Rule tests")
     table.add_column("Rule", overflow="fold")
     table.add_column("TP", justify="right")
@@ -91,10 +126,13 @@ def test(
 @app.command()
 def convert(
     target: Annotated[Target, typer.Option(help="Backend to convert rules to.")] = Target.all,
+    rules: RulesOpt = None,
+    out: OutOpt = None,
 ) -> None:
     """Convert rules to Splunk SPL and/or Elastic Lucene queries."""
+    cfg = settings(rules, out=out)
     targets = list(BACKENDS) if target is Target.all else [target.value]
-    results = convert_rules(targets)
+    results = convert_rules(targets, cfg.rules, cfg.out)
     table = Table(title="Conversion")
     table.add_column("Rule", overflow="fold")
     table.add_column("Target")
@@ -114,17 +152,20 @@ def convert(
 
 
 @app.command()
-def coverage() -> None:
+def coverage(rules: RulesOpt = None, out: OutOpt = None) -> None:
     """Build the ATT&CK Navigator layer and coverage summary."""
-    coverage = write_coverage()
+    cfg = settings(rules, out=out)
+    result = write_coverage(cfg.rules, cfg.out)
     console.print(
-        f"coverage: {coverage.rule_count} rule(s), {len(coverage.techniques)} technique(s), "
-        f"{len(coverage.tactics)} tactic(s) -> dist/attack-layer.json, dist/coverage.md"
+        f"coverage: {result.rule_count} rule(s), {len(result.techniques)} technique(s), "
+        f"{len(result.tactics)} tactic(s) -> {_display(cfg.out / 'attack-layer.json')}, "
+        f"{_display(cfg.out / 'coverage.md')}"
     )
 
 
 @app.command()
-def report() -> None:
+def report(rules: RulesOpt = None, fixtures: FixturesOpt = None, out: OutOpt = None) -> None:
     """Write the Markdown report of counts, test results and coverage."""
-    path = write_report()
+    cfg = settings(rules, fixtures, out)
+    path = write_report(cfg.rules, cfg.fixtures, cfg.out)
     console.print(f"report: written to {_display(path)}")
