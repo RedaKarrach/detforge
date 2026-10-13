@@ -194,3 +194,43 @@ def test_columns_differing_only_in_case_are_one_column() -> None:
     queries = ["SELECT * FROM logs WHERE Image LIKE '%whoami.exe'"]
     events = [{"image": "c:\\whoami.exe"}, {"Image": "C:\\WHOAMI.EXE"}, {"IMAGE": "x.exe"}]
     assert match_events(queries, {"Image"}, events) == {0, 1}
+
+
+def test_rules_only_judge_their_own_fixtures(tmp_path: Path) -> None:
+    """Rule A's TN events live in the same table as rule B's TP events; a match of rule A's
+    query on rule B's events must not count against either rule."""
+    rules = tmp_path / "rules"
+    rules.mkdir()
+    fixtures = tmp_path / "fixtures"
+    write_jsonl(fixtures / "baseline" / "events.jsonl", [])
+    ids = ["11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"]
+    for rule_id, name, detection in (
+        (ids[0], "a", WHOAMI),
+        (
+            ids[1],
+            "b",
+            "    selection:\n        Image|endswith: '\\\\hostname.exe'\n    condition: selection",
+        ),
+    ):
+        (rules / f"rule_{name}.yml").write_text(
+            RULE.format(
+                rule_id=rule_id, logsource="category: process_creation", detection=detection
+            )
+        )
+    whoami = {"Image": "C:\\x\\whoami.exe"}
+    hostname = {"Image": "C:\\x\\hostname.exe"}
+    write_jsonl(fixtures / ids[0] / "tp.jsonl", [whoami, whoami])
+    write_jsonl(fixtures / ids[0] / "tn.jsonl", [hostname, hostname])
+    write_jsonl(fixtures / ids[1] / "tp.jsonl", [hostname, hostname])
+    write_jsonl(fixtures / ids[1] / "tn.jsonl", [whoami, whoami])
+    results = run_tests(rules, fixtures)
+    assert [(r.passed, r.tp_matched, r.tn_fp) for r in results] == [(True, 2, 0), (True, 2, 0)]
+
+
+def test_boolean_and_nested_values_are_stored_as_json() -> None:
+    queries = ["SELECT * FROM logs WHERE Flag = 'true' AND Nested = '{\"a\": 1}'"]
+    assert match_events(queries, set(), [{"Flag": True, "Nested": {"a": 1}}]) == {0}
+
+
+def test_store_with_no_columns_still_works() -> None:
+    assert match_events(["SELECT * FROM logs"], set(), [{"_meta": 1}, {}]) == {0, 1}
