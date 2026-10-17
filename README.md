@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/RedaKarrach/detforge/actions/workflows/ci.yml/badge.svg)](https://github.com/RedaKarrach/detforge/actions/workflows/ci.yml)
 
+New here? Follow one rule from attack to merge, with a live rule lab: **https://redakarrach.github.io/detforge/**
+
 Unit tests and CI for Sigma detection rules.
 
 Most Sigma tooling converts rules (sigma-cli) or hunts through logs with them (Zircolite,
