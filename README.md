@@ -4,6 +4,8 @@
 
 New here? Follow one rule from attack to merge, with a live rule lab: **https://redakarrach.github.io/detforge/**
 
+![detforge test in a terminal: two rules pass, a simplified rule fails against its near-miss events, the fix passes again](docs/assets/demo.gif)
+
 Unit tests and CI for Sigma detection rules.
 
 Most Sigma tooling converts rules (sigma-cli) or hunts through logs with them (Zircolite,
