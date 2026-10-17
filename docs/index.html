@@ -605,18 +605,18 @@ out = "build"</pre></div>
   });
 
   // stop 07 matrix
-  var TACTICS = [['Recon', 10], ['Resource Dev', 8], ['Initial Access', 10], ['Execution', 14], ['Persistence', 20], ['Priv Esc', 14], ['Defense Evasion', 42], ['Cred Access', 17], ['Discovery', 32], ['Lateral Mvmt', 9], ['Collection', 17], ['C2', 17], ['Exfiltration', 9], ['Impact', 14]];
-  var LIT = { 'Execution': [['T1059.001', 'PowerShell Encoded Command Execution'], ['T1569.002', 'PsExec Service Installation']], 'Lateral Mvmt': [['T1021.002', 'PsExec Service Installation']] };
+  var TACTICS = [['Recon', 10, 'Reconnaissance'], ['ResDev', 8, 'Resource Development'], ['InitAcc', 10, 'Initial Access'], ['Exec', 14, 'Execution'], ['Persist', 20, 'Persistence'], ['PrivEsc', 14, 'Privilege Escalation'], ['DefEva', 42, 'Defense Evasion'], ['CredAcc', 17, 'Credential Access'], ['Discov', 32, 'Discovery'], ['LatMov', 9, 'Lateral Movement'], ['Collect', 17, 'Collection'], ['C2', 17, 'Command and Control'], ['Exfil', 9, 'Exfiltration'], ['Impact', 14, 'Impact']];
+  var LIT = { 'Exec': [['T1059.001', 'PowerShell Encoded Command Execution'], ['T1569.002', 'PsExec Service Installation']], 'LatMov': [['T1021.002', 'PsExec Service Installation']] };
   var matrix = document.getElementById('matrix'), legend = document.getElementById('legend');
   TACTICS.forEach(function (t) {
     var col = document.createElement('div'); col.className = 'tactic';
-    col.innerHTML = '<div class="t">' + t[0] + '</div>';
+    col.innerHTML = '<div class="t" title="' + t[2] + '">' + t[0] + '</div>';
     var lit = LIT[t[0]] || [];
     for (var i = 0; i < Math.min(t[1], 12); i++) {
       var c = document.createElement('div'); c.className = 'cell';
       if (i < lit.length) {
         c.classList.add('lit'); c.title = lit[i][0];
-        (function (item, tactic) { c.addEventListener('click', function () { legend.innerHTML = '<b>' + item[0] + '</b> in ' + tactic + ' · covered by "' + item[1] + '"'; }); })(lit[i], t[0]);
+        (function (item, tactic) { c.addEventListener('click', function () { legend.innerHTML = '<b>' + item[0] + '</b> in ' + tactic + ' · covered by "' + item[1] + '"'; }); })(lit[i], t[2]);
       }
       col.appendChild(c);
     }
