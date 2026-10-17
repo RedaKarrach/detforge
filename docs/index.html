@@ -82,7 +82,7 @@
 | |_| | |___  | | |  _|| |_| |  _ &lt;| |_| | |___
 |____/|_____| |_| |_|   \___/|_| \_\\____|_____|</pre>
     <p class="tag"><b>unit tests and CI for Sigma detection rules</b> · MIT · <a href="https://github.com/RedaKarrach/detforge">github.com/RedaKarrach/detforge</a></p>
-    <p class="intro">Eight questions. Each one has a command. Run it, read the output, take the arrow down to the next one. Every line of output on this page came from running DetForge on its own repository. The one part that runs live is the test harness: here it runs on the repository's real test events, in your browser.<br><br><span class="k">Press enter, or tap the command line, to run the first one.</span></p>
+    <p class="intro"><span class="k">What this is for.</span> A detection rule is a few lines that tell a security tool "alert when you see this". Teams write hundreds of them, paste them into their tools, and rarely look again. Months later a rule has quietly stopped working, or started alerting on normal work, and nobody knows. DetForge is the check: every rule keeps a few example attacks and a few normal events next to it, and they are re-run every time the rule changes. Like unit tests for code. If a rule breaks, the build fails before anyone ships it.<br><br>Eight questions, one command each. Run it, read what it prints, take the arrow down. Every line of output here is real. The test harness runs live, on the repository's real example events, in your browser.<br><br><span class="k">Press enter, or tap the command line, to run the first one.</span></p>
   </div>
 
   <div id="steps"></div>
@@ -207,7 +207,7 @@ pySigma (sqlite, splunk, elasticsearch backends) · Python 3.11+ · typer + rich
       ]
     },
     {
-      q: 'Rules get pasted into the SIEM and forgotten. Is this one even well formed?',
+      q: 'Before testing it: is the rule file itself in order?',
       cmd: 'detforge lint --offline',
       out: '<span class="g">lint: no issues</span>\n<span class="c">// checks: filename (snake_case .yml) · layout (folder = tactic tag) · required-field (title, id, status, description,\n// author, date, logsource, detection, falsepositives, level, tags) · tags (technique + tactic) · fixtures (tp.jsonl\n// and tn.jsonl, 2+ events each) · the pySigma validators. online, the MITRE tag validators run too.</span>',
       menu: [
@@ -233,7 +233,7 @@ pySigma (sqlite, splunk, elasticsearch backends) · Python 3.11+ · typer + rich
       ]
     },
     {
-      q: 'How does the rule get into the SIEM without retyping it?',
+      q: 'The rule is written in Sigma. How does it get into Splunk or Elastic?',
       cmd: 'detforge convert --target all',
       out: '<span class="g">convert: 4 file(s) written</span>\n<span class="ps1">$</span> ls dist/splunk dist/lucene\ndist/splunk: powershell_encoded_command.txt  psexec_service_install.txt\ndist/lucene: powershell_encoded_command.txt  psexec_service_install.txt',
       menu: [
@@ -242,7 +242,7 @@ pySigma (sqlite, splunk, elasticsearch backends) · Python 3.11+ · typer + rich
       ]
     },
     {
-      q: 'What do we actually cover?',
+      q: 'Of all the known attack techniques, which ones do our rules cover?',
       cmd: 'detforge coverage',
       out: 'coverage: 2 rule(s), 3 technique(s), 2 tactic(s) -> dist/attack-layer.json, dist/coverage.md\n\n<span class="box"><span class="c">  ATT&amp;CK Enterprise           [#] covered   [ ] not yet</span>\n  recon      resdev     initacc    <span class="y">exec</span>       persist    privesc    defeva\n  [ ][ ][ ]  [ ][ ][ ]  [ ][ ][ ]  <span class="y">[#][#]</span>[ ]  [ ][ ][ ]  [ ][ ][ ]  [ ][ ][ ]\n  credacc    discov     <span class="y">latmov</span>     collect    c2         exfil      impact\n  [ ][ ][ ]  [ ][ ][ ]  <span class="y">[#]</span>[ ][ ]  [ ][ ][ ]  [ ][ ][ ]  [ ][ ][ ]  [ ][ ][ ]</span>\n<span class="c">// two rules is a small start. the point is that the map is generated from the tags, so it is never out of date.\n// dist/attack-layer.json loads straight into the ATT&amp;CK Navigator.</span>',
       menu: [
@@ -250,7 +250,7 @@ pySigma (sqlite, splunk, elasticsearch backends) · Python 3.11+ · typer + rich
       ]
     },
     {
-      q: 'Who stops a broken rule from shipping?',
+      q: 'Who stops a broken rule from going live?',
       cmd: 'git push origin simplify-powershell-rule',
       out: '<span class="c">// GitHub Actions, on every push and pull request:</span>\n<span class="g">✓</span> Ruff                         4s\n<span class="g">✓</span> Unit tests                  11s\n<span class="g">✓</span> Lint rules                   3s\n<span class="r">✗</span> Test rules                   3s\n    <span class="r">FAIL rules/windows/execution/powershell_encoded_command.yml</span>\n      - TN #1 matched: near-miss: -ExecutionPolicy starts with -e but is not -e\n      - TN #2 matched: near-miss: -Encoding UTF8 shares the -enco prefix with -EncodedCommand\n      - baseline event matched: admin runs a script with -File\n      ... test: 1 of 2 rule(s) failed\n<span class="g">✓</span> Report (always runs, lands in the job summary)\n\n<span class="r">■ merge blocked</span>  <span class="c">// the reviewer does not need to know the rule by heart. the failing event is right there,\n                // by the description its author gave it.</span>',
       menu: [
