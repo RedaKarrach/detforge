@@ -42,7 +42,8 @@
   .prompt { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; cursor: pointer; padding: 6px 8px; margin-left: -8px; border-radius: 3px; }
   .prompt:hover { background: var(--sel); }
   .ps1 { color: var(--green); }
-  .cmd { color: var(--text); }
+  .cmd { color: var(--text); min-width: 0; word-break: break-all; }
+  .ps1 { flex: 0 0 auto; }
   .cmd.ghost { color: var(--dim); }
   .hint { color: var(--amber-dim); font-size: 12px; }
   .cur::after { content: "█"; color: var(--amber); animation: blink 1s steps(1) infinite; margin-left: 1px; }
@@ -53,7 +54,7 @@
   .out .k { color: var(--amber-dim); }
   .out.box { white-space: pre; }
   .menu { margin: 10px 0 0; }
-  .menu button { font-family: inherit; font-size: 13.5px; background: transparent; color: var(--cyan); border: 1px solid #214452; border-radius: 3px; padding: 4px 10px; margin: 4px 6px 0 0; cursor: pointer; }
+  .menu button { font-family: inherit; font-size: 13.5px; background: transparent; color: var(--cyan); border: 1px solid #214452; border-radius: 3px; padding: 4px 10px; margin: 4px 6px 0 0; cursor: pointer; max-width: 100%; white-space: normal; word-break: break-word; text-align: left; }
   .menu button:hover, .menu button.on { background: #0c1a1f; border-color: var(--cyan); }
   .menu button b { color: var(--amber); font-weight: 600; }
   .menu .lbl { color: var(--dim); margin-right: 6px; }
