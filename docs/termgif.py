@@ -10,6 +10,7 @@ color_system="standard" (or FORCE_COLOR=1 on a pipe). Needs Pillow and a monospa
 
 from __future__ import annotations
 
+import contextlib
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -22,8 +23,22 @@ LINE_H = 18
 PAD_X, PAD_Y, BAR_H = 18, 14, 34
 BG, BAR, TEXT, CURSOR = (11, 11, 13), (24, 23, 26), (230, 225, 216), (255, 77, 109)
 PALETTE = {
-    30: (60, 60, 64), 31: (255, 107, 107), 32: (79, 209, 161), 33: (245, 196, 81), 34: (130, 170, 255), 35: (199, 146, 234), 36: (127, 215, 255), 37: (230, 225, 216),
-    90: (124, 120, 115), 91: (255, 130, 130), 92: (110, 230, 180), 93: (250, 210, 110), 94: (150, 185, 255), 95: (215, 170, 245), 96: (160, 225, 255), 97: (245, 242, 236),
+    30: (60, 60, 64),
+    31: (255, 107, 107),
+    32: (79, 209, 161),
+    33: (245, 196, 81),
+    34: (130, 170, 255),
+    35: (199, 146, 234),
+    36: (127, 215, 255),
+    37: (230, 225, 216),
+    90: (124, 120, 115),
+    91: (255, 130, 130),
+    92: (110, 230, 180),
+    93: (250, 210, 110),
+    94: (150, 185, 255),
+    95: (215, 170, 245),
+    96: (160, 225, 255),
+    97: (245, 242, 236),
 }
 SGR = re.compile(r"\x1b\[([0-9;]*)m")
 OTHER_ESC = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
@@ -32,14 +47,17 @@ Seg = tuple[str, tuple[int, int, int], bool]
 
 
 def _font(bold: bool = False) -> ImageFont.FreeTypeFont:
-    for p in ["C:/Windows/Fonts/CascadiaMono.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", "/System/Library/Fonts/Menlo.ttc"]:
+    for p in [
+        "C:/Windows/Fonts/CascadiaMono.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
+        "/System/Library/Fonts/Menlo.ttc",
+    ]:
         if Path(p).exists():
             f = ImageFont.truetype(p, FONT_SIZE)
             if bold and "Cascadia" in p:
-                try:
+                # not every build of the font is variable; regular weight is fine then
+                with contextlib.suppress(OSError, ValueError):
                     f.set_variation_by_name("Bold")
-                except Exception:  # noqa: BLE001
-                    pass
             return f
     return ImageFont.load_default()
 
@@ -54,14 +72,16 @@ def parse_ansi(text: str) -> list[list[Seg]]:
     for line in text.replace("\r\n", "\n").split("\n"):
         line = OTHER_ESC.sub(lambda m: m.group(0) if m.group(0).endswith("m") else "", line)
         if "\r" in line:
-            line = line.rsplit("\r", 1)[-1]  # a live status overwrote itself; keep what was drawn last
+            line = line.rsplit("\r", 1)[
+                -1
+            ]  # a live status overwrote itself; keep what was drawn last
         if re.match(r"^(\x1b\[[0-9;]*m)*\s*[⠀-⣿]", line):
             continue  # a spinner frame
         segs: list[Seg] = []
         color, bold, pos = TEXT, False, 0
         for m in SGR.finditer(line):
             if m.start() > pos:
-                segs.append((line[pos:m.start()], color, bold))
+                segs.append((line[pos : m.start()], color, bold))
             for code in (m.group(1) or "0").split(";"):
                 c = int(code or 0)
                 if c == 0:
@@ -87,7 +107,9 @@ def plain(row: list[Seg]) -> str:
     return "".join(t for t, _, _ in row)
 
 
-def draw_frame(rows: list[list[Seg]], height_lines: int, title: str, cols: int = COLS) -> Image.Image:
+def draw_frame(
+    rows: list[list[Seg]], height_lines: int, title: str, cols: int = COLS
+) -> Image.Image:
     w = int(PAD_X * 2 + CHAR_W * cols)
     h = BAR_H + PAD_Y * 2 + LINE_H * height_lines
     img = Image.new("RGB", (w, h), BG)
@@ -124,8 +146,13 @@ class Scene:
     user: str = "reda@laptop:~$"
 
 
-def build(scenes: list[Scene], out: str | Path, height: int | None = None, cols: int = COLS) -> None:
+def build(
+    scenes: list[Scene], out: str | Path, height: int | None = None, cols: int = COLS
+) -> None:
     parsed = [parse_ansi(s.ansi) for s in scenes]
+    # never clip: widen the window to the longest line a scene actually produced
+    longest = max((len(plain(r)) for rows in parsed for r in rows), default=0)
+    cols = max(cols, longest + 1)
     if height is None:
         height = max(len(rows) + (2 if s.intro else 1) for rows, s in zip(parsed, scenes)) + 1
     frames: list[Image.Image] = []
@@ -133,21 +160,41 @@ def build(scenes: list[Scene], out: str | Path, height: int | None = None, cols:
     for s, rows in zip(scenes, parsed):
         base: list[list[Seg]] = [[(s.intro, PALETTE[90], False)]] if s.intro else []
         for cur in (True, False, True):
-            frames.append(draw_frame(base + [prompt_row("", cur, s.user)], height, s.title, cols)); durations.append(260)
+            frames.append(draw_frame(base + [prompt_row("", cur, s.user)], height, s.title, cols))
+            durations.append(260)
         for i in range(1, len(s.cmd) + 1):
-            frames.append(draw_frame(base + [prompt_row(s.cmd[:i], True, s.user)], height, s.title, cols)); durations.append(70 if len(s.cmd) > 30 else 110)
-        frames.append(draw_frame(base + [prompt_row(s.cmd, False, s.user)], height, s.title, cols)); durations.append(350)
+            frames.append(
+                draw_frame(base + [prompt_row(s.cmd[:i], True, s.user)], height, s.title, cols)
+            )
+            durations.append(70 if len(s.cmd) > 30 else 110)
+        frames.append(draw_frame(base + [prompt_row(s.cmd, False, s.user)], height, s.title, cols))
+        durations.append(350)
         shown = base + [prompt_row(s.cmd, False, s.user)]
         step = 3 if len(rows) > 24 else 2
         for i in range(0, len(rows), step):
             shown = base + [prompt_row(s.cmd, False, s.user)] + rows[: i + step]
-            frames.append(draw_frame(shown, height, s.title, cols)); durations.append(55)
+            frames.append(draw_frame(shown, height, s.title, cols))
+            durations.append(55)
         for _ in range(s.hold):
-            frames.append(draw_frame(shown, height, s.title, cols)); durations.append(130)
-    pal = [f.quantize(colors=96, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE) for f in frames]
+            frames.append(draw_frame(shown, height, s.title, cols))
+            durations.append(130)
+    pal = [
+        f.quantize(colors=96, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
+        for f in frames
+    ]
     out = Path(out)
-    pal[0].save(out, save_all=True, append_images=pal[1:], duration=durations, loop=0, optimize=True, disposal=1)
-    print(f"wrote {out}: {len(frames)} frames, {frames[0].size[0]}x{frames[0].size[1]}, {out.stat().st_size / 1024:.0f} KB, {sum(durations) / 1000:.1f} s")
+    pal[0].save(
+        out,
+        save_all=True,
+        append_images=pal[1:],
+        duration=durations,
+        loop=0,
+        optimize=True,
+        disposal=1,
+    )
+    print(
+        f"wrote {out}: {len(frames)} frames, {frames[0].size[0]}x{frames[0].size[1]}, {out.stat().st_size / 1024:.0f} KB, {sum(durations) / 1000:.1f} s"
+    )
 
 
 def cut_before(ansi: str, marker: str) -> str:
