@@ -31,21 +31,22 @@ at your own rules folder or fork the repository as a template.
 
 ## Quickstart
 
-Python 3.11 or newer.
+Python 3.11 or newer and [uv](https://docs.astral.sh/uv/).
 
 ```
 git clone https://github.com/RedaKarrach/detforge.git
 cd detforge
-python -m venv .venv
-.venv\Scripts\activate          # Linux/macOS: source .venv/bin/activate
-pip install -e ".[dev]"
+uv sync --extra dev               # creates .venv with the exact versions in uv.lock
 
-detforge lint --offline
-detforge test
-detforge convert --target all
-detforge coverage
-detforge report
+uv run detforge lint --offline
+uv run detforge test
+uv run detforge convert --target all
+uv run detforge coverage
+uv run detforge report
 ```
+
+`uv.lock` pins every dependency, including the pySigma backends, and CI installs from it
+with `uv sync --locked`, so your machine and CI test against the same versions.
 
 `detforge test` prints one line per rule:
 
