@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 230" width="1000" height="230" role="img" aria-label="DetForge">
+  <defs>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="1000" height="230" rx="36" fill="#050604"/>
+
+  <!-- mark: a sigma struck into an anvil -->
+  <g transform="translate(34,22) scale(0.72)" filter="url(#glow)">
+    <g fill="#1c1708" stroke="#ffb000" stroke-width="8" stroke-linejoin="round">
+      <path d="M40 104 H172 L216 94 V124 L172 138 H40 Z"/>
+      <path d="M104 138 H152 V160 H104 Z"/>
+      <path d="M70 160 H186 L202 196 H54 Z"/>
+    </g>
+    <path d="M132 112 H104 L120 121 L104 130 H132" fill="none" stroke="#ffb000" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    <g stroke="#ffb000" stroke-width="6" stroke-linecap="round">
+      <path d="M206 72 L214 58"/>
+      <path d="M222 80 L236 72"/>
+      <path d="M190 66 L186 52"/>
+    </g>
+  </g>
+
+  <text x="246" y="138" font-family="'IBM Plex Mono', ui-monospace, Menlo, Consolas, 'Liberation Mono', monospace" font-weight="700" font-size="96" filter="url(#glow)"><tspan fill="#ffb000">det</tspan><tspan fill="#a87400">forge</tspan></text>
+  <text x="250" y="180" font-family="'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace" font-size="18" fill="#7c7764" letter-spacing="2.5">TESTED SIGMA DETECTION RULES, MAPPED TO MITRE ATT&amp;CK</text>
+
+  <!-- motif: the bar stock on the anvil -->
+  <path d="M246 206 H952" fill="none" stroke="#5a3f00" stroke-width="6" stroke-linecap="round"/>
+  <g fill="#ffb000" filter="url(#glow)">
+    <circle cx="246" cy="206" r="7"/>
+    <circle cx="430" cy="206" r="7"/>
+    <circle cx="614" cy="206" r="7"/>
+    <circle cx="798" cy="206" r="7"/>
+    <circle cx="952" cy="206" r="7"/>
+  </g>
+</svg>

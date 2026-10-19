@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/assets/logo.svg" width="128" alt="DetForge logo: a sigma struck into an anvil"></p>
+<p align="center"><img src="docs/assets/logo-wordmark.svg" width="860" alt="DetForge: tested Sigma detection rules, mapped to MITRE ATT&CK"></p>
 
 # DetForge
 
