@@ -1,0 +1,40 @@
+title: LSASS Memory Access From an Unexpected Process
+id: 4db2cd41-d043-405e-bf5d-1ede414fdbef
+status: experimental
+description: |
+    Detects a process opening lsass.exe with the access rights a credential dumper needs to read
+    process memory, excluding the Windows and security components that legitimately do so. LSASS
+    holds cached credentials, so reading its memory is a common credential-access step.
+references:
+    - https://attack.mitre.org/techniques/T1003/001/
+author: Reda
+date: 2026-10-19
+tags:
+    - attack.credential-access
+    - attack.t1003.001
+logsource:
+    product: windows
+    category: process_access
+detection:
+    selection:
+        TargetImage|endswith: '\lsass.exe'
+        GrantedAccess:
+            - '0x1010'
+            - '0x1038'
+            - '0x1410'
+            - '0x1438'
+            - '0x143a'
+            - '0x1fffff'
+    filter_known:
+        SourceImage|endswith:
+            - '\MsMpEng.exe'
+            - '\wmiprvse.exe'
+            - '\csrss.exe'
+            - '\taskmgr.exe'
+            - '\lsm.exe'
+            - '\MsSense.exe'
+            - '\SenseIR.exe'
+    condition: selection and not filter_known
+falsepositives:
+    - EDR, antivirus and performance-monitoring agents not already in the filter; add them by SourceImage
+level: high

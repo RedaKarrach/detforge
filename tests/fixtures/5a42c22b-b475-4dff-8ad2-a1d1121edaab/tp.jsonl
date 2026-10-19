@@ -1,0 +1,2 @@
+{"_description": "vssadmin delete all shadows quietly", "EventID": 1, "Image": "C:\\Windows\\System32\\vssadmin.exe", "OriginalFileName": "VSSADMIN.EXE", "CommandLine": "vssadmin.exe delete shadows /all /quiet", "ParentImage": "C:\\Users\\jdoe\\AppData\\Local\\Temp\\locker.exe", "User": "NT AUTHORITY\\SYSTEM"}
+{"_description": "wmic shadowcopy delete", "EventID": 1, "Image": "C:\\Windows\\System32\\wbem\\wmic.exe", "OriginalFileName": "wmic.exe", "CommandLine": "wmic.exe shadowcopy delete", "ParentImage": "C:\\Windows\\System32\\cmd.exe", "User": "NT AUTHORITY\\SYSTEM"}

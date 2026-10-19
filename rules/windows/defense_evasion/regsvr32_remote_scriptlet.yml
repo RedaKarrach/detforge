@@ -1,0 +1,29 @@
+title: Regsvr32 Loading a Remote Scriptlet
+id: bc03697e-2c7a-4ab8-872e-984ca4dc1dba
+status: experimental
+description: |
+    Detects regsvr32.exe told to load scrobj.dll with a remote URL (the "Squiblydoo" technique).
+    regsvr32 is signed and allowlisted, so the scriptlet it fetches runs code under a trusted
+    binary with nothing written to disk first.
+references:
+    - https://attack.mitre.org/techniques/T1218/010/
+author: Reda
+date: 2026-10-19
+tags:
+    - attack.defense-evasion
+    - attack.t1218.010
+logsource:
+    product: windows
+    category: process_creation
+detection:
+    selection_img:
+        - Image|endswith: '\regsvr32.exe'
+        - OriginalFileName: 'REGSVR32.EXE'
+    selection_cli:
+        CommandLine|contains|all:
+            - 'scrobj'
+            - 'http'
+    condition: all of selection_*
+falsepositives:
+    - None expected; no legitimate product registers a scriptlet from a URL
+level: critical

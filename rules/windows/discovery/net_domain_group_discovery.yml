@@ -1,0 +1,38 @@
+title: Domain Account and Group Discovery With net
+id: 5652408f-535c-4ebf-b462-a11dc6c06e59
+status: experimental
+description: |
+    Detects net.exe (or net1.exe) enumerating domain accounts and privileged groups. Right after
+    landing on a host, intruders map who the admins are and which accounts to target; the /domain
+    switch and the high-value group names are the tell.
+references:
+    - https://attack.mitre.org/techniques/T1087/002/
+    - https://attack.mitre.org/techniques/T1069/002/
+author: Reda
+date: 2026-10-19
+tags:
+    - attack.discovery
+    - attack.t1087.002
+    - attack.t1069.002
+logsource:
+    product: windows
+    category: process_creation
+detection:
+    selection_img:
+        - Image|endswith:
+              - '\net.exe'
+              - '\net1.exe'
+        - OriginalFileName:
+              - 'net.exe'
+              - 'net1.exe'
+    selection_recon:
+        CommandLine|contains:
+            - ' group "domain admins"'
+            - ' group "enterprise admins"'
+            - ' group /domain'
+            - ' user /domain'
+            - ' localgroup administrators'
+    condition: all of selection_*
+falsepositives:
+    - Administrators and inventory scripts that enumerate groups; tune by the parent process and the running account
+level: medium

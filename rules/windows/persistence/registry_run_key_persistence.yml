@@ -1,0 +1,38 @@
+title: Run Key Pointing at a User-Writable Path
+id: 13e33ad6-3e25-4f88-8a21-4efb029b1b69
+status: experimental
+description: |
+    Detects a value written under a Run or RunOnce key whose data points at a user-writable
+    location or a script host. Legitimate software registers itself from Program Files; malware
+    that just landed in AppData, Temp or Downloads registers itself from there.
+references:
+    - https://attack.mitre.org/techniques/T1547/001/
+author: Reda
+date: 2026-10-19
+tags:
+    - attack.persistence
+    - attack.t1547.001
+logsource:
+    product: windows
+    category: registry_set
+detection:
+    selection_key:
+        TargetObject|contains:
+            - '\CurrentVersion\Run\'
+            - '\CurrentVersion\RunOnce\'
+    selection_data:
+        Details|contains:
+            - '\AppData\'
+            - '\Temp\'
+            - '\Users\Public\'
+            - '\Downloads\'
+            - 'powershell'
+            - 'mshta'
+            - 'rundll32'
+            - 'regsvr32'
+            - 'wscript'
+            - 'cscript'
+    condition: all of selection_*
+falsepositives:
+    - Per-user installers that live in AppData by design (Discord, Spotify, Teams); allowlist by the exact Details value
+level: high

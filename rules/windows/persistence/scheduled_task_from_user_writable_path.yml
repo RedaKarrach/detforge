@@ -1,0 +1,33 @@
+title: Scheduled Task Created to Run From a User-Writable Path
+id: 999775ec-6eab-49c7-b4c2-0cef15c018ea
+status: experimental
+description: |
+    Detects schtasks.exe creating a task whose action lives in a user-writable folder.
+    Attackers favour scheduled tasks for persistence because they survive reboots, can run as
+    SYSTEM, and look like maintenance.
+references:
+    - https://attack.mitre.org/techniques/T1053/005/
+author: Reda
+date: 2026-10-19
+tags:
+    - attack.persistence
+    - attack.t1053.005
+logsource:
+    product: windows
+    category: process_creation
+detection:
+    selection_img:
+        - Image|endswith: '\schtasks.exe'
+        - OriginalFileName: 'schtasks.exe'
+    selection_create:
+        CommandLine|contains: '/create'
+    selection_path:
+        CommandLine|contains:
+            - '\AppData\'
+            - '\Temp\'
+            - '\Users\Public\'
+            - '\Downloads\'
+    condition: all of selection_*
+falsepositives:
+    - Software that schedules per-user updaters from AppData (Chrome, Edge, OneDrive); allowlist by task name or binary
+level: high

@@ -1,0 +1,25 @@
+title: UAC Bypass via fodhelper Registry Hijack
+id: 15daa2cf-c03d-464a-8949-4b1df0bc6ef3
+status: experimental
+description: |
+    Detects the registry side of the fodhelper UAC bypass: a value written under
+    HKCU\Software\Classes\ms-settings\shell\open\command. fodhelper.exe auto-elevates and reads
+    that key, so whatever is placed there runs with high integrity without a UAC prompt.
+references:
+    - https://attack.mitre.org/techniques/T1548/002/
+author: Reda
+date: 2026-10-19
+tags:
+    - attack.defense-evasion
+    - attack.privilege-escalation
+    - attack.t1548.002
+logsource:
+    product: windows
+    category: registry_set
+detection:
+    selection:
+        TargetObject|contains: '\Software\Classes\ms-settings\shell\open\command'
+    condition: selection
+falsepositives:
+    - None expected; no legitimate software writes this key
+level: high

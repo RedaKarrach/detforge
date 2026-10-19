@@ -1,0 +1,29 @@
+title: Windows Event Log Cleared With wevtutil
+id: 0331c035-ff3b-44f6-b86f-d6db9e2f2989
+status: experimental
+description: |
+    Detects wevtutil.exe clearing an event log. Clearing the Security or System log is one of
+    the last things an intruder does on a host to cover their tracks; a defender almost never
+    does it on a live machine.
+references:
+    - https://attack.mitre.org/techniques/T1070/001/
+author: Reda
+date: 2026-10-19
+tags:
+    - attack.defense-evasion
+    - attack.t1070.001
+logsource:
+    product: windows
+    category: process_creation
+detection:
+    selection_img:
+        - Image|endswith: '\wevtutil.exe'
+        - OriginalFileName: 'wevtutil.exe'
+    selection_cli:
+        CommandLine|contains:
+            - ' cl '
+            - ' clear-log '
+    condition: all of selection_*
+falsepositives:
+    - Lab or image-preparation scripts that clear logs before capture (sysprep workflows)
+level: high

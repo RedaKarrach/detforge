@@ -1,0 +1,3 @@
+{"_description": "dumper reads lsass with PROCESS_VM_READ|QUERY_INFORMATION", "EventID": 10, "SourceImage": "C:\\Users\\jdoe\\AppData\\Local\\Temp\\p.exe", "TargetImage": "C:\\Windows\\System32\\lsass.exe", "GrantedAccess": "0x1410", "User": "CORP\\jdoe"}
+{"_description": "rundll32 abusing comsvcs MiniDump, full access", "EventID": 10, "SourceImage": "C:\\Windows\\System32\\rundll32.exe", "TargetImage": "C:\\Windows\\System32\\lsass.exe", "GrantedAccess": "0x1fffff", "User": "CORP\\jdoe"}
+{"_description": "access from a powershell host", "EventID": 10, "SourceImage": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "TargetImage": "C:\\Windows\\System32\\lsass.exe", "GrantedAccess": "0x143a", "User": "CORP\\jdoe"}
