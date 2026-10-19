@@ -34,7 +34,8 @@ pySigma does parsing and conversion; DetForge's own code does linting, testing, 
 - tests/fixtures/<rule-id>/tn.jsonl : near-miss benign events it must NOT match (at least 2)
 - tests/fixtures/baseline/*.jsonl : shared benign events no rule may match
 - tests/data/ : deliberately broken rules used by the linter's own tests
-- src/detforge/ : cli.py, loader.py, lint.py, harness.py, convert.py, coverage.py, report.py
+- src/detforge/ : cli.py, loader.py, lint.py, harness.py, convert.py, coverage.py, report.py,
+  display.py (list/show/matrix views), scaffold.py (the `new` command), attack.py (ATT&CK names)
 - docs/RULES.md : one row per rule: technique, logic, false positives, evasions
 - dist/ : generated output, git-ignored, uploaded as CI artifact
 
@@ -61,6 +62,13 @@ pySigma does parsing and conversion; DetForge's own code does linting, testing, 
   (tactic -> technique -> rules).
 - `detforge report`: dist/report.md with counts, per-rule test results and coverage by tactic;
   in CI also appended to $GITHUB_STEP_SUMMARY.
+- `detforge list [--tactic T]`: read-only table of every rule (tactic, level, technique, tp/tn counts).
+- `detforge show <rule>`: one rule by path, file stem, or a unique substring of the stem; prints
+  metadata, ATT&CK names (from attack.py), test-event counts and the detection block from the YAML.
+- `detforge matrix`: ATT&CK coverage as a tactic-by-tactic table, covered tactics in order.
+- `detforge new <tactic> <name> --technique tNNNN [--title T] [--logsource L]`: scaffold.py writes
+  rules/windows/<tactic>/<name>.yml plus tests/fixtures/<new-id>/{tp,tn}.jsonl; the scaffold lints clean.
+  Does not require the rules folder to exist yet.
 
 ## How the rule tests work
 1. Convert the rule with sigma.backends.sqlite.sqliteBackend(). The output is a full

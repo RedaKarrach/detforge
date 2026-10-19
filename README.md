@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/assets/logo.svg" width="128" alt="DetForge logo: a sigma struck into an anvil"></p>
+
 # DetForge
 
 [![CI](https://github.com/RedaKarrach/detforge/actions/workflows/ci.yml/badge.svg)](https://github.com/RedaKarrach/detforge/actions/workflows/ci.yml)
@@ -25,9 +27,21 @@ What you get on every push:
 - `detforge coverage`: an ATT&CK Navigator layer and a tactic/technique summary.
 - `detforge report`: a Markdown report that also lands in the GitHub Actions job summary.
 
-The rules in `rules/` are Windows rules written and tested by the author. They are the
-example content; the point of the repository is the harness around them. You can point it
-at your own rules folder or fork the repository as a template.
+And to work with the rule set from the terminal:
+
+- `detforge list`: every rule with its tactic, level, technique and test-event counts.
+- `detforge show <rule>`: one rule in full, by name or a unique part of it, ATT&CK mapping
+  and detection logic included.
+- `detforge matrix`: ATT&CK coverage as a tactic-by-tactic matrix.
+- `detforge new <tactic> <name> --technique tNNNN`: scaffold a rule and its tp/tn fixtures,
+  ready to fill in, already laid out so `lint` passes.
+
+The pack ships 10 Windows rules across 7 ATT&CK tactics (execution, persistence, privilege
+escalation, defense evasion, credential access, discovery, lateral movement and impact),
+each with true-positive and near-miss events. They are the example content; the point of the
+repository is the harness around them. Point it at your own rules folder or fork it as a
+template. See [docs/RULES.md](docs/RULES.md) for each rule's logic, a false positive and an
+evasion.
 
 ## Quickstart
 

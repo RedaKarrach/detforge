@@ -8,12 +8,16 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from detforge.attack import tactic_name, technique_name
 from detforge.config import Settings
 from detforge.convert import BACKENDS, convert_rules
 from detforge.coverage import write_coverage
+from detforge.display import collect, find_rule, matrix, rule_info
 from detforge.harness import run_tests
 from detforge.lint import lint_rules
+from detforge.loader import load_rules
 from detforge.report import write_report
+from detforge.scaffold import LOGSOURCES, scaffold
 
 app = typer.Typer(
     help="DetForge: lint, test, convert and report on Sigma detection rules.",
@@ -169,3 +173,157 @@ def report(rules: RulesOpt = None, fixtures: FixturesOpt = None, out: OutOpt = N
     cfg = settings(rules, fixtures, out)
     path = write_report(cfg.rules, cfg.fixtures, cfg.out)
     console.print(f"report: written to {_display(path)}")
+
+
+_LEVEL_STYLE = {
+    "critical": "bold red",
+    "high": "red",
+    "medium": "yellow",
+    "low": "cyan",
+    "informational": "dim",
+}
+
+
+def _level(level: str) -> str:
+    return f"[{_LEVEL_STYLE.get(level, 'white')}]{level or '-'}[/]"
+
+
+@app.command(name="list")
+def list_rules(
+    rules: RulesOpt = None,
+    fixtures: FixturesOpt = None,
+    tactic: Annotated[str | None, typer.Option(help="Only rules in this tactic folder.")] = None,
+) -> None:
+    """List every rule: tactic, level, technique and how many test events it carries."""
+    cfg = settings(rules, fixtures)
+    infos, errors = collect(cfg.rules, cfg.fixtures)
+    if tactic:
+        infos = [info for info in infos if info.tactic_folder == tactic.replace("-", "_")]
+    table = Table(title=f"Rules ({len(infos)})")
+    table.add_column("Tactic")
+    table.add_column("Rule", overflow="fold")
+    table.add_column("Level")
+    table.add_column("Technique")
+    table.add_column("TP/TN", justify="right")
+    for info in infos:
+        table.add_row(
+            info.tactic_folder,
+            info.name,
+            _level(info.level),
+            ", ".join(info.techniques) or "-",
+            f"{info.tp_events}/{info.tn_events}",
+        )
+    console.print(table)
+    for error in errors:
+        console.print(f"[red]load error:[/red] {error}")
+    if errors:
+        raise typer.Exit(1)
+
+
+@app.command()
+def show(
+    rule: Annotated[str, typer.Argument(help="Rule file, name, or a unique part of the name.")],
+    rules: RulesOpt = None,
+    fixtures: FixturesOpt = None,
+) -> None:
+    """Show one rule in full: metadata, ATT&CK mapping, detection logic and its test events."""
+    cfg = settings(rules, fixtures)
+    path = find_rule(cfg.rules, rule)
+    if path is None:
+        console.print(f"[red]error:[/red] no single rule matches {rule!r}")
+        raise typer.Exit(2)
+    loaded, load_errors = load_rules(path)
+    if load_errors or not loaded:
+        for error in load_errors:
+            console.print(f"[red]error:[/red] {error.message}")
+        raise typer.Exit(1)
+    info = rule_info(loaded[0], cfg.fixtures)
+    console.print(f"[bold]{info.title}[/bold]")
+    console.print(f"  {_display(info.path)}")
+    console.print(f"  id        {info.id}")
+    console.print(f"  status    {info.status}    level {_level(info.level)}")
+    console.print(f"  author    {info.author}    date {info.date}")
+    console.print(f"  logsource {info.logsource}")
+    console.print("  ATT&CK:")
+    for tactic in info.tactics:
+        console.print(f"    {tactic_name(tactic)}")
+    for technique in info.techniques:
+        console.print(f"      {technique}  {technique_name(technique)}")
+    console.print(
+        f"  tests     {info.tp_events} true-positive, {info.tn_events} near-miss event(s)"
+    )
+    console.print("\n[dim]--- detection ---[/dim]")
+    import yaml
+
+    doc = yaml.safe_load(path.read_text(encoding="utf-8-sig"))
+    detection_yaml = yaml.safe_dump(
+        {"detection": doc.get("detection", {})}, sort_keys=False, default_flow_style=False
+    )
+    for line in detection_yaml.rstrip().splitlines():
+        console.print(f"  {line}", markup=False, highlight=False)
+
+
+@app.command(name="matrix")
+def matrix_cmd(rules: RulesOpt = None) -> None:
+    """Show ATT&CK coverage as a tactic-by-tactic matrix."""
+    cfg = settings(rules)
+    rows, coverage = matrix(cfg.rules)
+    table = Table(title="ATT&CK coverage")
+    table.add_column("Tactic")
+    table.add_column("Techniques (rules)", overflow="fold")
+    for row in rows:
+        if row.covered:
+            cells = ", ".join(f"{technique} ({count})" for technique, count in row.techniques)
+            table.add_row(f"[green]{tactic_name(row.tactic)}[/green]", cells)
+        else:
+            table.add_row(f"[dim]{tactic_name(row.tactic)}[/dim]", "[dim]-[/dim]")
+    console.print(table)
+    console.print(
+        f"{coverage.rule_count} rule(s) covering {len(coverage.techniques)} technique(s) "
+        f"across {len(coverage.tactics)} tactic(s)."
+    )
+
+
+@app.command()
+def new(
+    tactic: Annotated[str, typer.Argument(help="ATT&CK tactic, e.g. execution, persistence.")],
+    name: Annotated[str, typer.Argument(help="Rule name in snake_case, e.g. rundll32_remote_dll.")],
+    technique: Annotated[str, typer.Option(help="ATT&CK technique, e.g. t1059.001.")],
+    title: Annotated[
+        str | None, typer.Option(help="Rule title (default: derived from the name).")
+    ] = None,
+    logsource: Annotated[
+        str, typer.Option(help=f"Logsource: {', '.join(LOGSOURCES)}.")
+    ] = "process_creation",
+    rules: RulesOpt = None,
+    fixtures: FixturesOpt = None,
+) -> None:
+    """Scaffold a new rule and its tp/tn fixture files, ready to fill in."""
+    # `new` creates the rules folder, so it skips the "rules path must exist" guard.
+    try:
+        base = Settings.load()
+    except (ValueError, OSError) as exc:
+        console.print(f"[red]error:[/red] {exc}")
+        raise typer.Exit(2) from exc
+    cfg = base.override(rules, fixtures)
+    try:
+        created = scaffold(
+            tactic,
+            name,
+            technique,
+            title=title,
+            logsource=logsource,
+            author=cfg.author or "Reda",
+            rules_root=cfg.rules,
+            fixtures_root=cfg.fixtures,
+        )
+    except (ValueError, FileExistsError) as exc:
+        console.print(f"[red]error:[/red] {exc}")
+        raise typer.Exit(2) from exc
+    console.print("[green]created:[/green]")
+    for path in (created.rule, created.tp, created.tn):
+        console.print(f"  {_display(path)}")
+    console.print(
+        f"\nFill in the detection and replace the TODO events, then:\n"
+        f"  detforge lint --offline\n  detforge test --rule {_display(created.rule)}"
+    )
