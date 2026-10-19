@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="DetForge logo: a sigma hammered into an anvil">
+  <defs>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="#050604"/>
+
+  <!-- anvil: face with horn, waist, base -->
+  <g fill="#1c1708" stroke="#ffb000" stroke-width="8" stroke-linejoin="round" filter="url(#glow)">
+    <path d="M40 104 H172 L216 94 V124 L172 138 H40 Z"/>
+    <path d="M104 138 H152 V160 H104 Z"/>
+    <path d="M70 160 H186 L202 196 H54 Z"/>
+  </g>
+
+  <!-- the sigma, struck into the face -->
+  <path d="M132 112 H104 L120 121 L104 130 H132" fill="none" stroke="#ffb000" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>
+
+  <!-- sparks off the horn -->
+  <g stroke="#ffb000" stroke-width="6" stroke-linecap="round" filter="url(#glow)">
+    <path d="M206 72 L214 58"/>
+    <path d="M222 80 L236 72"/>
+    <path d="M190 66 L186 52"/>
+  </g>
+</svg>
