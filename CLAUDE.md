@@ -51,8 +51,10 @@ pySigma does parsing and conversion; DetForge's own code does linting, testing, 
 - `detforge lint [--offline]`: load every rule with SigmaCollection, run all pySigma core validators
   (sigma.validators.core.validators), then project checks: unique id and title, snake_case filename inside
   its tactic folder, required fields, technique + tactic tag, fixture dir with non-empty tp.jsonl and tn.jsonl,
-  every line a valid JSON object. `--offline` excludes the `attacktag` and `d3_fendtag` validators: they
-  download MITRE data at runtime and crash without network. Rich table output, exit 1 on any error.
+  every line a valid JSON object. `--offline` excludes the `d3_fendtag` validator (downloads MITRE data,
+  crashes without network). The `attacktag` validator is ALWAYS skipped (BROKEN_VALIDATORS): pySigma 1.5.x
+  ships an incomplete ATT&CK table (TA0005 slugged "stealth", no T1070.001) that fails valid, current tags;
+  tag_issues + the folder/tactic check validate tagging instead. Rich table output, exit 1 on any error.
 - `detforge test [--rule PATH]`: see "How the rule tests work".
 - `detforge convert --target splunk|lucene|all`: Splunk = SplunkBackend(sysmon_pipeline() + windows_logsource_pipeline());
   Lucene = LuceneBackend(ecs_windows()) with ecs_windows from sigma.pipelines.elasticsearch.windows.

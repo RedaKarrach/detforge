@@ -74,9 +74,11 @@ with `uv sync --locked`, so your machine and CI test against the same versions.
 benign events that matched; both must be zero. A failing rule is followed by the events
 that caused it, using the `_description` you gave each event.
 
-`detforge lint` without `--offline` also runs the two pySigma validators that download
-MITRE data (`attacktag`, `d3_fendtag`). CI runs it online; use `--offline` on a machine
-without network access.
+`detforge lint` without `--offline` also runs the `d3_fendtag` validator, which downloads
+MITRE data. CI runs it online; use `--offline` on a machine without network access.
+pySigma's `attacktag` validator is always skipped: the 1.5.x data it ships is incomplete
+(it slugs the Defense Evasion tactic as "stealth" and omits current sub-techniques like
+T1070.001), so it fails valid tags. DetForge validates the technique and tactic tags itself.
 
 ## Layout
 

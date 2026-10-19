@@ -20,8 +20,15 @@ from detforge.loader import (
     rule_path,
 )
 
-# These two download MITRE data at runtime and crash without network.
+# These download MITRE data at runtime and crash without network; skipped with --offline.
 NETWORK_VALIDATORS = frozenset({"attacktag", "d3_fendtag"})
+
+# pySigma 1.5.x ships an incomplete ATT&CK table: it slugs the Defense Evasion tactic
+# (TA0005) as "stealth" and omits current sub-techniques such as T1070.001, so its
+# attacktag validator reports valid, current ATT&CK tags as invalid. We validate the
+# tactic and technique tags ourselves (see tag_issues and the folder/tactic check), so
+# this one validator is always skipped rather than failing the build on good tags.
+BROKEN_VALIDATORS = frozenset({"attacktag"})
 
 REQUIRED_FIELDS = (
     "title",
@@ -87,7 +94,7 @@ def pysigma_issues(rules: list[SigmaRule], offline: bool) -> list[LintIssue]:
     selected = [
         validator
         for name, validator in validators.items()
-        if not (offline and name in NETWORK_VALIDATORS)
+        if name not in BROKEN_VALIDATORS and not (offline and name in NETWORK_VALIDATORS)
     ]
     issues: list[LintIssue] = []
     for issue in SigmaValidator(selected).validate_rules(rules):
